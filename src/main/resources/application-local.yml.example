@@ -1,0 +1,26 @@
+# 이 파일을 application-local.yml 로 복사한 뒤 로컬 환경에 맞게 값을 채워 사용하세요.
+# (application-local.yml 은 .gitignore에 등록되어 커밋되지 않습니다.)
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/notice_forecast?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+    username: nf_user
+    password: nf_password
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+app:
+  cors:
+    allowed-origins: http://localhost:3000
+  llm:
+    api-key: your-llm-api-key
+  vapid:
+    public-key: your-vapid-public-key
+    private-key: your-vapid-private-key
+  admin:
+    key: your-local-admin-key
