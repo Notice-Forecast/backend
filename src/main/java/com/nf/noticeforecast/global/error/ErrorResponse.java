@@ -1,8 +1,8 @@
 package com.nf.noticeforecast.global.error;
 
-public record ErrorResponse(
-        int status,
-        String code,
-        String message
-) {
+import com.fasterxml.jackson.annotation.JsonInclude;
+import java.util.Map;
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public record ErrorResponse(int status, String code, String message, Map<String, String> fields) {
 }
