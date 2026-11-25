@@ -48,8 +48,9 @@ public class DeviceService {
         Device device = find(deviceId);
         var alerts = request.alertSettings();
         device.updateAlerts(alerts.newNotice(), alerts.prepStart(), alerts.noticeChanged(), alerts.deadline());
-        var filter = request.matchFilter();
-        device.updateMatchFilter(filter.department().trim(), filter.grade(), filter.enrollmentStatus());
+        var filter = request.matchFilter().normalized();
+        device.updateMatchFilter(filter.department(), filter.extraDepartments(), filter.grade(),
+                filter.enrollmentStatus());
         return toResponse(device);
     }
 

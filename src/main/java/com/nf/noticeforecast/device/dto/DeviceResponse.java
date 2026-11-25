@@ -14,7 +14,8 @@ public record DeviceResponse(
         AlertSettings alerts = new AlertSettings(device.isAlertNewNotice(), device.isAlertPrepStart(),
                 device.isAlertNoticeChanged(), device.isAlertDeadline());
         MatchFilter filter = device.hasMatchFilter()
-                ? new MatchFilter(device.getMatchDepartment(), device.getMatchGrade(), device.getMatchEnrollmentStatus())
+                ? new MatchFilter(device.getMatchDepartment(), device.getMatchExtraDepartments(),
+                        device.getMatchGrade(), device.getMatchEnrollmentStatus())
                 : null;
         return new DeviceResponse(device.getId(), device.getRestoreCode(), pushSubscribed, alerts, filter);
     }
