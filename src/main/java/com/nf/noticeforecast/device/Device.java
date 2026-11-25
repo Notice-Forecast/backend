@@ -7,6 +7,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -43,6 +44,9 @@ public class Device {
     @Column(length = 100)
     private String matchDepartment;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<String> matchExtraDepartments;
+
     private Integer matchGrade;
 
     @Enumerated(EnumType.STRING)
@@ -72,10 +76,16 @@ public class Device {
         this.alertDeadline = deadline;
     }
 
-    public void updateMatchFilter(String department, int grade, EnrollmentStatus enrollmentStatus) {
+    public void updateMatchFilter(String department, List<String> extraDepartments, int grade,
+                                  EnrollmentStatus enrollmentStatus) {
         this.matchDepartment = department;
+        this.matchExtraDepartments = extraDepartments;
         this.matchGrade = grade;
         this.matchEnrollmentStatus = enrollmentStatus;
+    }
+
+    public List<String> getMatchExtraDepartments() {
+        return matchExtraDepartments == null ? List.of() : matchExtraDepartments;
     }
 
     public boolean hasMatchFilter() {

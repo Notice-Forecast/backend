@@ -25,3 +25,6 @@ out/
 ### OS ###
 .DS_Store
 Thumbs.db
+
+### Local docs ###
+/docs/api-spec.md
