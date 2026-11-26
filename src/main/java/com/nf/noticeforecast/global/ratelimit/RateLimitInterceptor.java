@@ -12,18 +12,25 @@ import org.springframework.web.servlet.HandlerInterceptor;
 @Component
 public class RateLimitInterceptor implements HandlerInterceptor {
 
+    private static final String DEVICES_PATH = "/api/v1/devices";
     private static final String RESTORE_PATH = "/api/v1/devices/restore";
 
     private final FixedWindowRateLimiter deviceLimiter = new FixedWindowRateLimiter(Clock.systemUTC(), 60);
     private final FixedWindowRateLimiter restoreLimiter = new FixedWindowRateLimiter(Clock.systemUTC(), 5);
+    // 로그인 없이 기기 행을 만드는 요청이다. 발표장처럼 한 IP에서 여럿이 동시에 등록할 수 있어 20회로 둔다(11/26 결정).
+    private final FixedWindowRateLimiter registerLimiter = new FixedWindowRateLimiter(Clock.systemUTC(), 20);
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         if ("OPTIONS".equals(request.getMethod())) {
             return true;
         }
-        if (RESTORE_PATH.equals(request.getServletPath())) {
+        boolean post = "POST".equals(request.getMethod());
+        String path = request.getServletPath();
+        if (post && RESTORE_PATH.equals(path)) {
             check(restoreLimiter, clientIp(request));
+        } else if (post && DEVICES_PATH.equals(path)) {
+            check(registerLimiter, clientIp(request));
         }
         String deviceId = request.getHeader(CurrentDeviceArgumentResolver.HEADER);
         if (deviceId != null && !deviceId.isBlank()) {

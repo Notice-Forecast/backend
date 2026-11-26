@@ -23,6 +23,9 @@ public class AdminKeyInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+        if ("OPTIONS".equals(request.getMethod())) {
+            return true;
+        }
         String given = request.getHeader(HEADER);
         // 키가 설정되지 않은 환경에서는 내부 API를 모두 막는다.
         if (adminKey.length == 0 || given == null

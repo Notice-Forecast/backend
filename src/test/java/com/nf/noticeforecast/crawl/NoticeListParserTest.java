@@ -57,4 +57,16 @@ class NoticeListParserTest {
         assertThat(notice.department()).isEqualTo("컴퓨터정보공학부");
         assertThat(notice.viewUrl()).isEqualTo(listUrl + "?mode=view&articleNo=278138");
     }
+
+    @Test
+    void 읽을_수_없는_행은_건너뛰고_나머지를_읽는다() {
+        String html = page(
+                row("", 278100, "정상 글", "일반", "2026.11.25", "학사행정팀")
+                        + row("", 278101, "날짜가 깨진 글", "일반", "2026-11-25", "학사행정팀")
+                        + row("", 278102, "정상 글 2", "학사", "2026.11.24", "학사행정팀"));
+
+        List<ListedNotice> notices = new NoticeListParser().parse(html, LIST_URL);
+
+        assertThat(notices).extracting(ListedNotice::articleNo).containsExactly(278100L, 278102L);
+    }
 }

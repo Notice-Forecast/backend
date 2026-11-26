@@ -36,4 +36,16 @@ class TitleDeadlineParserTest {
     void 마감_표기가_없으면_비운다() {
         assertThat(parser.parse("2027학년도 1학기 프란치스코관 모집공고")).isEmpty();
     }
+
+    @Test
+    void 연월일_표기도_연도와_시각이_있으면_읽는다() {
+        assertThat(parser.parse("총학생회 선거 후보 등록 (2026년 11월 25일 18시까지)"))
+                .contains(Instant.parse("2026-11-25T09:00:00Z"));
+    }
+
+    @Test
+    void 뒤쪽의_읽을_수_없는_날짜가_앞의_마감을_지우지_않는다() {
+        assertThat(parser.parse("근로장학생 모집 (~ 2026. 12. 3.(목) 17시, 추가모집 ~ 12. 10.)"))
+                .contains(Instant.parse("2026-12-03T08:00:00Z"));
+    }
 }

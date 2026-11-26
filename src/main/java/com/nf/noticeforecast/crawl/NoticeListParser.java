@@ -1,5 +1,6 @@
 package com.nf.noticeforecast.crawl;
 
+import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -8,8 +9,10 @@ import java.util.List;
 import java.util.Map;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.nodes.Element;
 
+@Slf4j
 public class NoticeListParser {
 
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("yyyy.MM.dd");
@@ -23,7 +26,16 @@ public class NoticeListParser {
             if (link == null || date == null) {
                 continue;
             }
-            long articleNo = Long.parseLong(link.attr("data-article-no").strip());
+            long articleNo;
+            LocalDate postedDate;
+            try {
+                articleNo = Long.parseLong(link.attr("data-article-no").strip());
+                postedDate = LocalDate.parse(date.text().strip(), DATE);
+            } catch (NumberFormatException | DateTimeException e) {
+                log.warn("skip unreadable notice row on {}: articleNo={}, date={}",
+                        listUrl, link.attr("data-article-no"), date.text());
+                continue;
+            }
             Element writer = row.selectFirst(".b-m-con .b-writer");
             Element category = row.selectFirst(".b-m-con .b-cate");
             String viewUrl = listUrl + "?mode=view&articleNo=" + articleNo;
@@ -31,7 +43,7 @@ public class NoticeListParser {
                     articleNo,
                     link.text().strip(),
                     category == null ? null : category.text().strip(),
-                    LocalDate.parse(date.text().strip(), DATE),
+                    postedDate,
                     writer == null ? null : writer.text().strip(),
                     viewUrl,
                     row.hasClass("b-cate-notice")));

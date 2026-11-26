@@ -39,4 +39,12 @@ class AdminKeyInterceptorTest {
         assertThatThrownBy(() -> pass(new AdminKeyInterceptor(""), ""))
                 .isInstanceOf(BusinessException.class);
     }
+
+    @Test
+    void CORS_사전_요청은_키_없이_통과한다() {
+        MockHttpServletRequest request = new MockHttpServletRequest("OPTIONS", "/api/v1/internal/crawl/run");
+
+        assertThat(new AdminKeyInterceptor("secret").preHandle(request, new MockHttpServletResponse(), new Object()))
+                .isTrue();
+    }
 }

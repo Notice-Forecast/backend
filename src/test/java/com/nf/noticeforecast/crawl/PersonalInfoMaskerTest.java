@@ -43,4 +43,16 @@ class PersonalInfoMaskerTest {
         assertThat(masker.isRosterTitle("장학생 선발 결과 안내")).isTrue();
         assertThat(masker.isRosterTitle("장학생 선발 안내")).isFalse();
     }
+
+    @Test
+    void 구분자_없는_휴대폰_번호와_주민등록번호를_가린다() {
+        String masked = masker.mask("연락처 01012345678, 주민번호 990101-1234567 / 9901011234567");
+
+        assertThat(masked).isEqualTo("연락처 [가림], 주민번호 [가림] / [가림]");
+    }
+
+    @Test
+    void 붙여_쓴_선발결과도_명단성_제목으로_본다() {
+        assertThat(masker.isRosterTitle("2026-2 근로장학생 선발결과 안내")).isTrue();
+    }
 }
