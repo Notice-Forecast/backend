@@ -251,8 +251,8 @@ class NoticeCrawlerTest {
     }
 
     @Test
-    void 학사일정은_과거_공지가_속한_학년도부터_탭의_마지막_해까지_본다() {
+    void 학사일정은_2021학년도부터_탭의_마지막_해까지_본다() {
         assertThat(NoticeCrawler.calendarYears(List.of(2027, 2026, 2025, 2024)))
-                .containsExactly(2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027);
+                .containsExactly(2021, 2022, 2023, 2024, 2025, 2026, 2027);
     }
 }

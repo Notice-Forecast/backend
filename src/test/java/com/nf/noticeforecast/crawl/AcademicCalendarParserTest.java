@@ -78,4 +78,15 @@ class AcademicCalendarParserTest {
     void 연도_탭을_읽는다() {
         assertThat(parser.availableYears(page())).containsExactly(2027, 2026);
     }
+
+    @Test
+    void 방학이_들어간_다른_일정과_없는_날짜는_건너뛴다() {
+        String html = page(
+                month(3, day(2, "1학기 개시일", "성심")),
+                month(5, day(20, "여름방학 기숙사 신청", "성심")),
+                month(6, day(22, "여름방학", "성심"), day(31, "잘못된 날짜", "성심")));
+
+        assertThat(parser.parseTerms(html, 2023)).containsExactly(
+                new AcademicCalendarParser.Term("2023-1", LocalDate.of(2023, 3, 2), LocalDate.of(2023, 6, 21)));
+    }
 }

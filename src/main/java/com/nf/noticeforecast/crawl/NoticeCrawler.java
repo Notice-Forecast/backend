@@ -37,6 +37,7 @@ public class NoticeCrawler {
     private static final String CALENDAR_URL = "https://www.catholic.ac.kr/ko/support/calendar2024_list.do";
     private static final String BACKFILL_DEPARTMENT_HOST = "csie.";
     private static final LocalDate BACKFILL_SINCE = LocalDate.of(2019, 1, 1);
+    private static final int CALENDAR_SINCE_YEAR = 2021;
 
     private final CrawlProperties properties;
     private final SchoolSiteClient client;
@@ -254,33 +255,36 @@ public class NoticeCrawler {
         }
         int saved = 0;
         for (int year : calendarYears(calendarParser.availableYears(first.body()))) {
-            FetchResult page = client.get(CALENDAR_URL + "?mode=list&siteId=ko&selectedYear=" + year);
-            if (!page.ok()) {
-                continue;
-            }
-            for (AcademicCalendarParser.Term term : calendarParser.parseTerms(page.body(), year)) {
-                TermCalendar calendar = termCalendarRepository.findById(term.term())
-                        .orElseGet(() -> TermCalendar.of(term.term(), term.startDate(), term.endDate()));
-                calendar.update(term.startDate(), term.endDate());
-                termCalendarRepository.save(calendar);
-                saved++;
+            try {
+                FetchResult page = client.get(CALENDAR_URL + "?mode=list&siteId=ko&selectedYear=" + year);
+                if (!page.ok()) {
+                    continue;
+                }
+                for (AcademicCalendarParser.Term term : calendarParser.parseTerms(page.body(), year)) {
+                    TermCalendar calendar = termCalendarRepository.findById(term.term())
+                            .orElseGet(() -> TermCalendar.of(term.term(), term.startDate(), term.endDate()));
+                    calendar.update(term.startDate(), term.endDate());
+                    termCalendarRepository.save(calendar);
+                    saved++;
+                }
+            } catch (Exception e) {
+                log.warn("term calendar failed for {}: {}", year, e.toString());
             }
         }
         return saved;
     }
 
     /**
-     * 연도 탭에는 최근 학년도만 보이지만 그 이전 학년도도 selectedYear로 조회된다. 과거 공지가 속한
-     * 학년도(2019년 1~2월 글은 2018학년도)부터 탭의 마지막 연도까지 본다. 일정이 없는 해는 학기가 0개다.
+     * 연도 탭에는 최근 학년도만 보이지만 그 이전 학년도도 selectedYear로 조회된다. 2021학년도부터
+     * 탭의 마지막 연도까지 본다. 2019·2020학년도는 일정이 없어 예보 계산에서 빼기로 했다(11/26 결정).
      */
     static List<Integer> calendarYears(List<Integer> tabYears) {
-        int from = BACKFILL_SINCE.getYear() - 1;
+        int from = CALENDAR_SINCE_YEAR;
         int to = tabYears.stream().mapToInt(Integer::intValue).max().orElse(from);
         ArrayList<Integer> years = new ArrayList<>();
         for (int year = from; year <= to; year++) {
             years.add(year);
         }
-        tabYears.stream().filter(year -> year < from).forEach(years::add);
         return years;
     }
 

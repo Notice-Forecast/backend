@@ -1,5 +1,6 @@
 package com.nf.noticeforecast.crawl;
 
+import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -13,7 +14,8 @@ import org.jsoup.nodes.Element;
 
 /**
  * 학교 학사일정 목록 화면(학년도 = 3월~다음 해 2월)에서 학기 시작·끝을 읽는다(CLAUDE.md 10장).
- * 학기 시작은 "N학기 개시일"(2021학년도 이전은 "N학기 개강"), 학기 끝은 방학 시작 전날이다(11/26 결정). 수집 대상 사이트가 모두
+ * 학기 시작은 "N학기 개시일"(2021학년도는 "N학기 개강"), 학기 끝은 방학 시작 전날이다(11/26 결정). 방학 기숙사 신청처럼 방학이 들어간 다른 일정과 섞이지 않게
+ * 이름이 정확히 "여름방학"·"겨울방학"인 항목만 본다. 수집 대상 사이트가 모두
  * 성심교정이라 성심교정 일정만 본다.
  */
 public class AcademicCalendarParser {
@@ -63,7 +65,12 @@ public class AcademicCalendarParser {
                 if (day == null || !day.find()) {
                     continue;
                 }
-                LocalDate date = LocalDate.of(year, monthValue, Integer.parseInt(day.group(1)));
+                LocalDate date;
+                try {
+                    date = LocalDate.of(year, monthValue, Integer.parseInt(day.group(1)));
+                } catch (DateTimeException e) {
+                    continue;
+                }
                 for (Element item : dayBlock.select("ul > li")) {
                     boolean campus = item.select(".b-cal-list-cate span").stream()
                             .anyMatch(span -> span.text().contains(CAMPUS));
@@ -74,9 +81,9 @@ public class AcademicCalendarParser {
                     Matcher termStart = TERM_START.matcher(name);
                     if (termStart.find()) {
                         starts.putIfAbsent(Integer.parseInt(termStart.group(1)), date);
-                    } else if (name.contains("여름방학")) {
+                    } else if (name.strip().equals("여름방학")) {
                         ends.putIfAbsent(1, date.minusDays(1));
-                    } else if (name.contains("겨울방학")) {
+                    } else if (name.strip().equals("겨울방학")) {
                         ends.putIfAbsent(2, date.minusDays(1));
                     }
                 }

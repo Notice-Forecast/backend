@@ -33,4 +33,16 @@ class NoticeDetailParserTest {
         assertThat(detail.bodyText()).isEmpty();
         assertThat(detail.attachments()).isEmpty();
     }
+
+    @Test
+    void 표_셀_사이에_구분자를_넣는다() {
+        String html = """
+                <div class="b-con-box"><table><tr><th>구분</th><th>기간</th></tr>
+                <tr><td>신청기간</td><td>11/30까지</td></tr><tr><td></td><td>추가모집</td></tr></table></div>
+                """;
+
+        NoticeDetail detail = new NoticeDetailParser().parse(html, VIEW_URL);
+
+        assertThat(detail.bodyText()).isEqualTo("구분 | 기간\n신청기간 | 11/30까지\n추가모집");
+    }
 }

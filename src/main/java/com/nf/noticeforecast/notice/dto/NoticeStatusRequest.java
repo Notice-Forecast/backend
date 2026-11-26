@@ -2,8 +2,8 @@ package com.nf.noticeforecast.notice.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.AssertTrue;
 
+@StatusKeyRequired
 public class NoticeStatusRequest {
 
     private String status;
@@ -23,7 +23,6 @@ public class NoticeStatusRequest {
 
     @JsonIgnore
     @Schema(hidden = true)
-    @AssertTrue(message = "status는 필수 값입니다.")
     public boolean isStatusPresent() {
         return statusPresent;
     }
