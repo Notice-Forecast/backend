@@ -1,0 +1,169 @@
+package com.nf.noticeforecast.crawl;
+
+import com.nf.noticeforecast.global.time.KoreanTime;
+import com.nf.noticeforecast.notice.ExtractionStatus;
+import com.nf.noticeforecast.notice.Notice;
+import com.nf.noticeforecast.notice.NoticeCategory;
+import com.nf.noticeforecast.notice.NoticeRepository;
+import com.nf.noticeforecast.notice.NoticeSource;
+import com.nf.noticeforecast.notice.NoticeSourceRepository;
+import com.nf.noticeforecast.notice.SourceKind;
+import java.io.IOException;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Predicate;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class NoticeCrawler {
+
+    private static final int PAGE_SIZE = 10;
+    private static final int IMAGE_ONLY_TEXT_LENGTH = 50;
+
+    private final CrawlProperties properties;
+    private final SchoolSiteClient client;
+    private final NoticeSourceRepository sourceRepository;
+    private final NoticeRepository noticeRepository;
+    private final NoticeListParser listParser = new NoticeListParser();
+    private final NoticeDetailParser detailParser = new NoticeDetailParser();
+    private final PersonalInfoMasker masker = new PersonalInfoMasker();
+    private final TitleDeadlineParser titleDeadlineParser = new TitleDeadlineParser();
+
+    /** 모든 사이트의 목록을 보고 새 공지만 상세를 받는다. */
+    public CrawlReport crawlNew() {
+        return crawl(source -> true, false, "new");
+    }
+
+    /** 해당 종류 사이트의 목록에 보이는 공지를 저장된 것까지 다시 받아 본문 변경을 확인한다. */
+    public CrawlReport recheck(SourceKind kind) {
+        return crawl(source -> source.getKind() == kind, true, "recheck " + kind);
+    }
+
+    private CrawlReport crawl(Predicate<NoticeSource> target, boolean recheckStored, String label) {
+        RobotsPolicy robots = new RobotsPolicy(client);
+        CrawlReport report = new CrawlReport();
+        for (NoticeSource source : sourceRepository.findAllByEnabledTrueOrderByIdAsc()) {
+            if (!included(source) || !target.test(source)) {
+                continue;
+            }
+            try {
+                crawlSource(source, robots, report, recheckStored);
+            } catch (Exception e) {
+                report.failedSources++;
+                log.warn("crawl failed for {}: {}", source.getName(), e.toString());
+            }
+        }
+        log.info("crawl finished ({}): {}", label, report);
+        return report;
+    }
+
+    private boolean included(NoticeSource source) {
+        return properties.include().isEmpty() || properties.include().contains(source.host().split("\\.")[0]);
+    }
+
+    private void crawlSource(NoticeSource source, RobotsPolicy robots, CrawlReport report, boolean recheckStored)
+            throws IOException {
+        if (!robots.allows(source.listUrl())) {
+            report.skippedByRobots++;
+            return;
+        }
+        Map<Long, ListedNotice> listed = new LinkedHashMap<>();
+        int pages = source.getKind() == SourceKind.UNIVERSITY ? 2 : 1;
+        for (int page = 0; page < pages; page++) {
+            String url = page == 0 ? source.listUrl()
+                    : source.listUrl() + "?mode=list&articleLimit=" + PAGE_SIZE + "&article.offset=" + page * PAGE_SIZE;
+            FetchResult result = client.get(url);
+            if (!result.ok()) {
+                throw new IOException("list " + url + " returned " + result.status());
+            }
+            List<ListedNotice> rows = listParser.parse(result.body(), source.listUrl());
+            if (rows.isEmpty()) {
+                log.warn("no notice rows parsed from {}", url);
+            }
+            rows.forEach(row -> listed.putIfAbsent(row.articleNo(), row));
+        }
+        report.listed += listed.size();
+        for (ListedNotice row : new ArrayList<>(listed.values())) {
+            Optional<Notice> existing = noticeRepository.findBySourceIdAndArticleNo(source.getId(), row.articleNo());
+            if (existing.isPresent() && (!recheckStored
+                    || existing.get().getBodyHash() == null && masker.isRosterTitle(row.title()))) {
+                continue;
+            }
+            if (!robots.allows(row.viewUrl())) {
+                report.skippedByRobots++;
+                continue;
+            }
+            try {
+                FetchResult detail = client.get(row.viewUrl());
+                if (!detail.ok()) {
+                    report.failedDetails++;
+                    continue;
+                }
+                Notice crawled = toNotice(source, row, detailParser.parse(detail.body(), row.viewUrl()));
+                if (existing.isEmpty()) {
+                    noticeRepository.save(crawled);
+                    report.saved++;
+                } else {
+                    report.rechecked++;
+                    if (existing.get().refreshBody(crawled, Instant.now())) {
+                        noticeRepository.save(existing.get());
+                        report.changed++;
+                    }
+                }
+            } catch (Exception e) {
+                report.failedDetails++;
+                log.warn("detail failed {}: {}", row.viewUrl(), e.toString());
+            }
+        }
+    }
+
+    Notice toNotice(NoticeSource source, ListedNotice row, NoticeDetail detail) {
+        boolean roster = masker.isRosterTitle(row.title());
+        boolean imageOnly = detail.bodyText().strip().length() < IMAGE_ONLY_TEXT_LENGTH && detail.imageCount() > 0;
+        boolean needsOriginal = roster || (imageOnly && detail.attachments().isEmpty());
+        Instant deadline = needsOriginal
+                ? titleDeadlineParser.parse(row.title()).orElse(null)
+                : null;
+        return Notice.builder()
+                .sourceId(source.getId())
+                .articleNo(row.articleNo())
+                .title(row.title())
+                .department(row.department())
+                .category(source.getKind() == SourceKind.DEPARTMENT
+                        ? NoticeCategory.DEPARTMENT : NoticeCategory.fromBoardLabel(row.boardCategory()))
+                .postedAt(row.postedDate().atStartOfDay(KoreanTime.ZONE).toInstant())
+                .sourceUrl(row.viewUrl())
+                .bodyText(roster ? null : masker.mask(detail.bodyText()))
+                .bodyHash(roster ? null : BodyHasher.hash(detail.bodyText()))
+                .attachments(detail.attachments())
+                .deadlineAt(deadline)
+                .extractionStatus(needsOriginal ? ExtractionStatus.NEEDS_ORIGINAL : ExtractionStatus.PENDING)
+                .now(Instant.now())
+                .build();
+    }
+
+    public static class CrawlReport {
+        int listed;
+        int saved;
+        int rechecked;
+        int changed;
+        int failedDetails;
+        int failedSources;
+        int skippedByRobots;
+
+        @Override
+        public String toString() {
+            return "listed=" + listed + ", saved=" + saved + ", rechecked=" + rechecked + ", changed=" + changed
+                    + ", failedDetails=" + failedDetails
+                    + ", failedSources=" + failedSources + ", skippedByRobots=" + skippedByRobots;
+        }
+    }
+}

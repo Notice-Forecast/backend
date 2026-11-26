@@ -5,6 +5,8 @@ server:
 spring:
   application:
     name: notice-forecast-backend
+  config:
+    import: classpath:notice-sources.yml
 
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/notice_forecast?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8}
@@ -45,5 +47,6 @@ app:
     subject: ${VAPID_SUBJECT:}
   crawl:
     enabled: ${CRAWL_ENABLED:true}
+    include: ${CRAWL_INCLUDE:}
   admin:
     key: ${ADMIN_KEY:}
