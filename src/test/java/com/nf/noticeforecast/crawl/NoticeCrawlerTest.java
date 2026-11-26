@@ -66,8 +66,7 @@ class NoticeCrawlerTest {
         Notice stored = crawler().toNotice(source, new ListedNotice(11, "이미 저장된 공지", "장학",
                         LocalDate.of(2026, 11, 18), "학생지원팀", LIST + "?mode=view&articleNo=11", false),
                 new NoticeDetail("이미 저장된 공지의 본문이고 바뀐 내용이 없습니다. 신청은 학생지원팀으로 하면 됩니다.", 0, List.of()));
-        when(noticeRepository.findBySourceIdAndArticleNo(1L, 10L)).thenReturn(java.util.Optional.empty());
-        when(noticeRepository.findBySourceIdAndArticleNo(1L, 11L)).thenReturn(java.util.Optional.of(stored));
+        when(noticeRepository.existsBySourceIdAndArticleNo(1L, 11L)).thenReturn(true);
 
         crawler().crawlNew();
 
@@ -101,6 +100,72 @@ class NoticeCrawlerTest {
         assertThat(requested).contains(LIST + "?mode=view&articleNo=11");
         assertThat(stored.getBodyText()).contains("12월 3일");
         verify(noticeRepository).save(stored);
+    }
+
+    private static String listPage(long... articleNos) {
+        StringBuilder rows = new StringBuilder();
+        for (long articleNo : articleNos) {
+            rows.append("<tr><td><a class=\"b-title\" data-article-no=\"").append(articleNo)
+                    .append("\">옛 공지 ").append(articleNo).append("</a><div class=\"b-m-con\">")
+                    .append("<span class=\"b-con b-cate\">장학</span><span class=\"b-con b-date\">")
+                    .append(articleNo < 100 ? "2018.12.31" : "2024.03.0" + (articleNo % 9 + 1))
+                    .append("</span><span class=\"b-con b-writer\">학생지원팀</span></div></td></tr>");
+        }
+        return "<div class=\"bn-list-common01\"><table><tbody>" + rows + "</tbody></table></div>";
+    }
+
+    @Test
+    void 과거_수집은_앞_페이지를_건너뛰고_빈_페이지에서_멈추며_상세는_받지_않는다() {
+        pages.put(BASE + "/robots.txt", new FetchResult(200, "User-agent: *\nDisallow: /_attach/\n"));
+        pages.put(LIST + "?mode=list&articleLimit=10&article.offset=20", new FetchResult(200, listPage(301, 302)));
+        pages.put(LIST + "?mode=list&articleLimit=10&article.offset=30", new FetchResult(200, listPage(303)));
+        pages.put(LIST + "?mode=list&articleLimit=10&article.offset=40", new FetchResult(200, listPage()));
+        when(noticeRepository.existsBySourceIdAndArticleNo(1L, 302L)).thenReturn(true);
+
+        NoticeCrawler.CrawlReport report = crawler().backfill();
+
+        assertThat(requested).doesNotContain(LIST, LIST + "?mode=list&articleLimit=10&article.offset=10");
+        assertThat(requested).noneMatch(url -> url.contains("mode=view"));
+        assertThat(report.getSaved()).isEqualTo(2);
+        var captor = org.mockito.ArgumentCaptor.forClass(Notice.class);
+        verify(noticeRepository, org.mockito.Mockito.times(2)).save(captor.capture());
+        Notice saved = captor.getAllValues().get(0);
+        assertThat(saved.getBodyText()).isNull();
+        assertThat(saved.getBodyHash()).isNull();
+        assertThat(saved.getTitle()).isEqualTo("옛 공지 301");
+    }
+
+    @Test
+    void 과거_수집은_기준일보다_오래된_글에서_멈춘다() {
+        pages.put(BASE + "/robots.txt", new FetchResult(200, "User-agent: *\nDisallow: /_attach/\n"));
+        pages.put(LIST + "?mode=list&articleLimit=10&article.offset=20", new FetchResult(200, listPage(301, 50, 302)));
+
+        NoticeCrawler.CrawlReport report = crawler().backfill();
+
+        assertThat(report.getSaved()).isEqualTo(1);
+        assertThat(requested).doesNotContain(LIST + "?mode=list&articleLimit=10&article.offset=30");
+    }
+
+    @Test
+    void 목록에서_밀려난_마감_전_공지도_원문_주소로_다시_확인한다() {
+        pages.put(BASE + "/robots.txt", new FetchResult(200, "User-agent: *\nDisallow: /_attach/\n"));
+        pages.put(LIST, new FetchResult(200, listPage()));
+        pages.put(LIST + "?mode=list&articleLimit=10&article.offset=10", new FetchResult(200, listPage()));
+        String url = LIST + "?mode=view&articleNo=900";
+        pages.put(url, new FetchResult(200, "<div class=\"b-con-box\"><p>마감이 1월 14일까지로 연장되었습니다. 신청은 한국장학재단 누리집에서 합니다.</p></div>"));
+        NoticeCrawler crawler = crawler();
+        Notice active = crawler.toNotice(source, new ListedNotice(900, "국가장학금 1차 신청", "장학",
+                        LocalDate.of(2026, 11, 24), "학생지원팀", url, false),
+                new NoticeDetail("마감은 1월 7일입니다. 신청은 한국장학재단 누리집에서 합니다. 문의는 학생지원팀.", 0, List.of()));
+        ReflectionTestUtils.setField(active, "id", 77L);
+        when(noticeRepository.findStillActive(any())).thenReturn(List.of(active));
+        when(sourceRepository.findById(1L)).thenReturn(java.util.Optional.of(source));
+
+        crawler.recheckUniversityAndActive();
+
+        assertThat(requested).contains(url);
+        assertThat(active.getBodyText()).contains("1월 14일");
+        verify(noticeRepository).save(active);
     }
 
     @Test

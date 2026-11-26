@@ -10,6 +10,7 @@ public enum ErrorCode {
     VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "입력한 내용을 다시 확인해 주세요."),
     INVALID_STATUS(HttpStatus.BAD_REQUEST, "선택할 수 없는 상태입니다."),
     DEVICE_REQUIRED(HttpStatus.UNAUTHORIZED, "기기 등록이 필요합니다."),
+    ADMIN_REQUIRED(HttpStatus.UNAUTHORIZED, "관리자 키가 필요합니다."),
     DEVICE_NOT_FOUND(HttpStatus.NOT_FOUND, "등록되지 않은 기기입니다."),
     NOTICE_NOT_FOUND(HttpStatus.NOT_FOUND, "공지를 찾을 수 없습니다."),
     RESTORE_CODE_INVALID(HttpStatus.NOT_FOUND, "복구 코드를 찾을 수 없습니다."),

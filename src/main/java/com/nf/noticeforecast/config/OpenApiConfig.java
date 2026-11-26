@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Configuration;
 public class OpenApiConfig {
 
     public static final String DEVICE_ID = "deviceId";
+    public static final String ADMIN_KEY = "adminKey";
 
     @Bean
     public OpenAPI noticeForecastOpenApi() {
@@ -22,6 +23,10 @@ public class OpenApiConfig {
                 .components(new Components().addSecuritySchemes(DEVICE_ID, new SecurityScheme()
                         .type(SecurityScheme.Type.APIKEY)
                         .in(SecurityScheme.In.HEADER)
-                        .name("X-Device-Id")));
+                        .name("X-Device-Id"))
+                        .addSecuritySchemes(ADMIN_KEY, new SecurityScheme()
+                                .type(SecurityScheme.Type.APIKEY)
+                                .in(SecurityScheme.In.HEADER)
+                                .name("X-Admin-Key")));
     }
 }
