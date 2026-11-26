@@ -42,8 +42,13 @@ public class GlobalExceptionHandler {
         return respond(ErrorCode.VALIDATION_FAILED, Map.of(ex.getParameterName(), "필수 값입니다."));
     }
 
-    @ExceptionHandler({HttpMessageNotReadableException.class, HandlerMethodValidationException.class})
-    public ResponseEntity<ErrorResponse> handleBadRequest(Exception ex) {
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleUnreadableBody(HttpMessageNotReadableException ex) {
+        return respond(ErrorCode.VALIDATION_FAILED, UnreadableBodyFields.from(ex));
+    }
+
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<ErrorResponse> handleBadRequest(HandlerMethodValidationException ex) {
         return respond(ErrorCode.VALIDATION_FAILED, Map.of());
     }
 

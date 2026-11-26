@@ -8,7 +8,8 @@ public record DeviceResponse(
         @Schema(example = "K7QF-2M9X", requiredMode = Schema.RequiredMode.REQUIRED) String restoreCode,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) boolean pushSubscribed,
         @Schema(requiredMode = Schema.RequiredMode.REQUIRED) AlertSettings alertSettings,
-        @Schema(description = "설정을 저장하기 전에는 null", nullable = true) MatchFilter matchFilter
+        @Schema(description = "설정을 저장하기 전에는 null", nullable = true,
+                requiredMode = Schema.RequiredMode.REQUIRED) MatchFilter matchFilter
 ) {
     public static DeviceResponse of(Device device, boolean pushSubscribed) {
         AlertSettings alerts = new AlertSettings(device.isAlertNewNotice(), device.isAlertPrepStart(),
