@@ -27,7 +27,7 @@ public class InternalCrawlController {
         return CrawlResultResponse.from(crawler.crawlNew());
     }
 
-    @Operation(summary = "과거 공지 일괄 수집", description = "학교 공지 전체와 컴퓨터정보공학부 2019년 이후 목록에서 제목·게시일·부서만 저장한다. 이미 있는 공지는 건너뛴다. 끝날 때까지 기다린다.",
+    @Operation(summary = "과거 공지 일괄 수집", description = "학사일정(학기 시작·끝)과, 학교 공지 전체와 컴퓨터정보공학부 2019년 이후 목록에서 제목·게시일·부서만 저장한다. 이미 있는 공지는 건너뛴다. 끝날 때까지 기다린다.",
             security = @SecurityRequirement(name = OpenApiConfig.ADMIN_KEY))
     @PostMapping("/backfill")
     public CrawlResultResponse backfill() {

@@ -1,5 +1,7 @@
 package com.nf.noticeforecast.crawl;
 
+import com.nf.noticeforecast.forecast.TermCalendar;
+import com.nf.noticeforecast.forecast.TermCalendarRepository;
 import com.nf.noticeforecast.global.time.KoreanTime;
 import com.nf.noticeforecast.notice.ExtractionStatus;
 import com.nf.noticeforecast.notice.Notice;
@@ -32,6 +34,7 @@ public class NoticeCrawler {
     private static final int PAGE_SIZE = 10;
     private static final int IMAGE_ONLY_TEXT_LENGTH = 50;
     private static final int BACKFILL_MAX_PAGES = 300;
+    private static final String CALENDAR_URL = "https://www.catholic.ac.kr/ko/support/calendar2024_list.do";
     private static final String BACKFILL_DEPARTMENT_HOST = "csie.";
     private static final LocalDate BACKFILL_SINCE = LocalDate.of(2019, 1, 1);
 
@@ -39,10 +42,12 @@ public class NoticeCrawler {
     private final SchoolSiteClient client;
     private final NoticeSourceRepository sourceRepository;
     private final NoticeRepository noticeRepository;
+    private final TermCalendarRepository termCalendarRepository;
     private final NoticeListParser listParser = new NoticeListParser();
     private final NoticeDetailParser detailParser = new NoticeDetailParser();
     private final PersonalInfoMasker masker = new PersonalInfoMasker();
     private final TitleDeadlineParser titleDeadlineParser = new TitleDeadlineParser();
+    private final AcademicCalendarParser calendarParser = new AcademicCalendarParser();
 
     /** 모든 사이트의 목록을 보고 새 공지만 상세를 받는다. */
     public synchronized CrawlReport crawlNew() {
@@ -186,6 +191,11 @@ public class NoticeCrawler {
     public synchronized CrawlReport backfill() {
         RobotsPolicy robots = new RobotsPolicy(client);
         CrawlReport report = new CrawlReport();
+        try {
+            report.terms = collectTermCalendar(robots);
+        } catch (Exception e) {
+            log.warn("term calendar failed: {}", e.toString());
+        }
         for (NoticeSource source : sourceRepository.findAllByEnabledTrueOrderByIdAsc()) {
             boolean university = source.getKind() == SourceKind.UNIVERSITY;
             if (!university && !source.host().startsWith(BACKFILL_DEPARTMENT_HOST)) {
@@ -232,6 +242,46 @@ public class NoticeCrawler {
                 report.saved++;
             }
         }
+    }
+
+    private int collectTermCalendar(RobotsPolicy robots) throws IOException {
+        if (!robots.allows(CALENDAR_URL)) {
+            return 0;
+        }
+        FetchResult first = client.get(CALENDAR_URL);
+        if (!first.ok()) {
+            throw new IOException("calendar returned " + first.status());
+        }
+        int saved = 0;
+        for (int year : calendarYears(calendarParser.availableYears(first.body()))) {
+            FetchResult page = client.get(CALENDAR_URL + "?mode=list&siteId=ko&selectedYear=" + year);
+            if (!page.ok()) {
+                continue;
+            }
+            for (AcademicCalendarParser.Term term : calendarParser.parseTerms(page.body(), year)) {
+                TermCalendar calendar = termCalendarRepository.findById(term.term())
+                        .orElseGet(() -> TermCalendar.of(term.term(), term.startDate(), term.endDate()));
+                calendar.update(term.startDate(), term.endDate());
+                termCalendarRepository.save(calendar);
+                saved++;
+            }
+        }
+        return saved;
+    }
+
+    /**
+     * 연도 탭에는 최근 학년도만 보이지만 그 이전 학년도도 selectedYear로 조회된다. 과거 공지가 속한
+     * 학년도(2019년 1~2월 글은 2018학년도)부터 탭의 마지막 연도까지 본다. 일정이 없는 해는 학기가 0개다.
+     */
+    static List<Integer> calendarYears(List<Integer> tabYears) {
+        int from = BACKFILL_SINCE.getYear() - 1;
+        int to = tabYears.stream().mapToInt(Integer::intValue).max().orElse(from);
+        ArrayList<Integer> years = new ArrayList<>();
+        for (int year = from; year <= to; year++) {
+            years.add(year);
+        }
+        tabYears.stream().filter(year -> year < from).forEach(years::add);
+        return years;
     }
 
     Notice toHistoryNotice(NoticeSource source, ListedNotice row) {
@@ -284,10 +334,11 @@ public class NoticeCrawler {
         int failedDetails;
         int failedSources;
         int skippedByRobots;
+        int terms;
 
         @Override
         public String toString() {
-            return "listed=" + listed + ", saved=" + saved + ", rechecked=" + rechecked + ", changed=" + changed
+            return "terms=" + terms + ", listed=" + listed + ", saved=" + saved + ", rechecked=" + rechecked + ", changed=" + changed
                     + ", failedDetails=" + failedDetails
                     + ", failedSources=" + failedSources + ", skippedByRobots=" + skippedByRobots;
         }
