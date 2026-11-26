@@ -24,7 +24,7 @@ public class CrawlScheduler {
 
     @Scheduled(initialDelayString = "PT6H", fixedDelayString = "PT6H")
     public void recheckUniversityNotices() {
-        crawler.recheck(SourceKind.UNIVERSITY);
+        crawler.recheckUniversityAndActive();
     }
 
     @Scheduled(cron = "0 0 3 * * *", zone = "Asia/Seoul")

@@ -1,6 +1,7 @@
 package com.nf.noticeforecast.config;
 
 import com.nf.noticeforecast.device.CurrentDeviceArgumentResolver;
+import com.nf.noticeforecast.global.admin.AdminKeyInterceptor;
 import com.nf.noticeforecast.global.ratelimit.RateLimitInterceptor;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,7 @@ public class WebConfig implements WebMvcConfigurer {
 
     private final CurrentDeviceArgumentResolver currentDeviceArgumentResolver;
     private final RateLimitInterceptor rateLimitInterceptor;
+    private final AdminKeyInterceptor adminKeyInterceptor;
 
     @Override
     public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
@@ -24,5 +26,6 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(rateLimitInterceptor).addPathPatterns("/api/**");
+        registry.addInterceptor(adminKeyInterceptor).addPathPatterns("/api/v1/internal/**");
     }
 }
