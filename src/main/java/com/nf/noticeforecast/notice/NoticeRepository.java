@@ -22,11 +22,14 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
     /** @param todayStart 오늘 00:00 KST. 날짜만 있는 마감은 그날이 끝날 때까지 마감 전이다. */
     List<Notice> findStillActive(Instant now, Instant todayStart);
 
-    /** AI 추출 대상: 아직 추출하지 않았고 본문이 있는 최근 글(CLAUDE.md 8.1). 본문 없이 첨부만 있는 글은 첨부 추출 뒤에 다룬다. */
+    /**
+     * AI 추출 후보: 아직 추출하지 않은 최근 글(CLAUDE.md 8.1). 본문 해시가 없는 글은 상세를 받지 않은 과거 이력이라 뺀다.
+     * 본문도 첨부도 없는 글은 서비스에서 거른다.
+     */
     @Query("""
             select n from Notice n
             where n.extractionStatus = 'PENDING'
-              and n.bodyText is not null and length(trim(n.bodyText)) > 0
+              and n.bodyHash is not null
               and n.postedAt >= :since
             order by n.postedAt desc
             """)

@@ -53,7 +53,8 @@ public class CardExtractor {
 
     public Outcome extract(Input input, LocalDate today) {
         String system = ExtractPrompt.system(today, input.postedAt());
-        String user = ExtractPrompt.user(input.title(), input.department(), input.postedAt(), input.bodyText());
+        String user = ExtractPrompt.user(input.title(), input.department(), input.postedAt(), input.bodyText(),
+                input.attachmentTexts());
         List<String> errors = List.of();
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             String message = attempt == 1 ? user : ExtractPrompt.retry(user, errors);
@@ -81,7 +82,8 @@ public class CardExtractor {
                 errors = List.of("JSON을 읽을 수 없습니다: " + e.getOriginalMessage());
                 continue;
             }
-            errors = CardValidator.validate(card, input.bodyText(), input.attachmentTexts());
+            errors = CardValidator.validate(card, input.bodyText() == null ? "" : input.bodyText(),
+                    input.attachmentTexts());
             if (errors.isEmpty()) {
                 return new Extracted(card, deadlineOf(card), result.model(), attempt);
             }
