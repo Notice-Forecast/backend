@@ -159,7 +159,7 @@ class NoticeCrawlerTest {
                         LocalDate.of(2026, 11, 24), "학생지원팀", url, false),
                 new NoticeDetail("마감은 1월 7일입니다. 신청은 한국장학재단 누리집에서 합니다. 문의는 학생지원팀.", 0, List.of()));
         ReflectionTestUtils.setField(active, "id", 77L);
-        when(noticeRepository.findStillActive(any())).thenReturn(List.of(active));
+        when(noticeRepository.findStillActive(any(), any())).thenReturn(List.of(active));
         when(sourceRepository.findById(1L)).thenReturn(java.util.Optional.of(source));
 
         crawler.recheckUniversityAndActive();

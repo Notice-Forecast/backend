@@ -1,5 +1,6 @@
 package com.nf.noticeforecast.crawl;
 
+import com.nf.noticeforecast.extract.ExtractionService;
 import com.nf.noticeforecast.notice.SourceKind;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -16,19 +17,23 @@ import org.springframework.stereotype.Component;
 public class CrawlScheduler {
 
     private final NoticeCrawler crawler;
+    private final ExtractionService extractionService;
 
     @Scheduled(initialDelayString = "PT1M", fixedDelayString = "PT1H")
     public void crawlNewNotices() {
         crawler.crawlNew();
+        extractionService.extractPending();
     }
 
     @Scheduled(initialDelayString = "PT6H", fixedDelayString = "PT6H")
     public void recheckUniversityNotices() {
         crawler.recheckUniversityAndActive();
+        extractionService.extractPending();
     }
 
     @Scheduled(cron = "0 0 3 * * *", zone = "Asia/Seoul")
     public void recheckDepartmentNotices() {
         crawler.recheck(SourceKind.DEPARTMENT);
+        extractionService.extractPending();
     }
 }

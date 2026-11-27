@@ -41,6 +41,7 @@ app:
   llm:
     api-key: ${LLM_API_KEY:}
     model: ${LLM_MODEL:claude-haiku-5-5}
+    effort: ${LLM_EFFORT:medium}
   vapid:
     public-key: ${VAPID_PUBLIC_KEY:}
     private-key: ${VAPID_PRIVATE_KEY:}

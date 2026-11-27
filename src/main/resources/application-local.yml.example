@@ -23,6 +23,7 @@ app:
   llm:
     api-key: your-llm-api-key
     model: claude-haiku-5-5
+    effort: medium
   vapid:
     public-key: your-vapid-public-key
     private-key: your-vapid-private-key

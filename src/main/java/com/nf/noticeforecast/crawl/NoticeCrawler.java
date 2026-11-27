@@ -3,6 +3,7 @@ package com.nf.noticeforecast.crawl;
 import com.nf.noticeforecast.forecast.TermCalendar;
 import com.nf.noticeforecast.forecast.TermCalendarRepository;
 import com.nf.noticeforecast.global.time.KoreanTime;
+import com.nf.noticeforecast.notice.ExtractionReason;
 import com.nf.noticeforecast.notice.ExtractionStatus;
 import com.nf.noticeforecast.notice.Notice;
 import com.nf.noticeforecast.notice.NoticeCategory;
@@ -169,7 +170,7 @@ public class NoticeCrawler {
 
     private void recheckStillActive(RobotsPolicy robots, CrawlReport report, Set<Long> handled) {
         Map<Long, NoticeSource> sources = new HashMap<>();
-        for (Notice notice : noticeRepository.findStillActive(Instant.now())) {
+        for (Notice notice : noticeRepository.findStillActive(Instant.now(), LocalDate.now(KoreanTime.ZONE).atStartOfDay(KoreanTime.ZONE).toInstant())) {
             if (handled.contains(notice.getId())) {
                 continue;
             }
@@ -325,6 +326,7 @@ public class NoticeCrawler {
                 .attachments(detail.attachments())
                 .deadlineAt(deadline)
                 .extractionStatus(needsOriginal ? ExtractionStatus.NEEDS_ORIGINAL : ExtractionStatus.PENDING)
+                .extractionReason(roster ? ExtractionReason.ROSTER : needsOriginal ? ExtractionReason.IMAGE_ONLY : null)
                 .now(Instant.now())
                 .build();
     }
