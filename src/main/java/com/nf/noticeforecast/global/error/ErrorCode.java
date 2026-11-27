@@ -13,6 +13,8 @@ public enum ErrorCode {
     ADMIN_REQUIRED(HttpStatus.UNAUTHORIZED, "관리자 키가 필요합니다."),
     DEVICE_NOT_FOUND(HttpStatus.NOT_FOUND, "등록되지 않은 기기입니다."),
     NOTICE_NOT_FOUND(HttpStatus.NOT_FOUND, "공지를 찾을 수 없습니다."),
+    NOTICE_BODY_MISSING(HttpStatus.CONFLICT, "본문이 없는 공지라 AI 추출을 할 수 없습니다."),
+    LLM_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "AI 추출 설정(LLM_API_KEY)이 없습니다."),
     RESTORE_CODE_INVALID(HttpStatus.NOT_FOUND, "복구 코드를 찾을 수 없습니다."),
     NOT_FOUND(HttpStatus.NOT_FOUND, "요청한 주소를 찾을 수 없습니다."),
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "지원하지 않는 요청 방식입니다."),

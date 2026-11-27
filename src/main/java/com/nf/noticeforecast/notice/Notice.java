@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import com.nf.noticeforecast.extract.card.Card;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -63,9 +64,22 @@ public class Notice {
 
     private Instant deadlineAt;
 
+    /** 마감에 시각이 없으면 true. 이때 deadline_at은 그날 00:00 KST이고 그날이 끝날 때까지 마감 전으로 본다(11/27 결정). */
+    @Column(nullable = false)
+    private boolean deadlineAllDay;
+
     @Getter(AccessLevel.NONE)
     @Column(nullable = false, length = 20)
     private String extractionStatus;
+
+    @Getter(AccessLevel.NONE)
+    @Column(length = 30)
+    private String extractionReason;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    private Card card;
+
+    private Instant extractedAt;
 
     @Column(nullable = false)
     private int revision;
@@ -80,7 +94,7 @@ public class Notice {
     private Notice(Long sourceId, Long articleNo, String title, String department, NoticeCategory category,
                    Instant postedAt, String sourceUrl, String bodyText, String bodyHash,
                    List<NoticeAttachment> attachments, Instant deadlineAt, ExtractionStatus extractionStatus,
-                   Instant now) {
+                   ExtractionReason extractionReason, Instant now) {
         this.sourceId = sourceId;
         this.articleNo = articleNo;
         this.title = title;
@@ -93,6 +107,7 @@ public class Notice {
         this.attachments = attachments;
         this.deadlineAt = deadlineAt;
         this.extractionStatus = extractionStatus.name();
+        this.extractionReason = extractionReason == null ? null : extractionReason.name();
         this.revision = 0;
         this.createdAt = now;
         this.updatedAt = now;
@@ -106,6 +121,31 @@ public class Notice {
         return ExtractionStatus.valueOf(extractionStatus);
     }
 
+    public ExtractionReason getExtractionReason() {
+        return extractionReason == null ? null : ExtractionReason.valueOf(extractionReason);
+    }
+
+    /** 변경 감지(notice_change)는 다음 작업에서 붙인다. 지금은 카드가 바뀔 때마다 revision을 올린다. */
+    public void applyCard(Card card, Instant deadlineAt, boolean deadlineAllDay, Instant now) {
+        this.card = card;
+        this.deadlineAt = deadlineAt;
+        this.deadlineAllDay = deadlineAt != null && deadlineAllDay;
+        this.extractionStatus = ExtractionStatus.DONE.name();
+        this.extractionReason = null;
+        this.revision++;
+        this.extractedAt = now;
+        this.updatedAt = now;
+    }
+
+    /** 카드는 null로 두고, 제목에서 읽은 마감(deadline_at)은 그대로 둔다(CLAUDE.md 8.1). */
+    public void markNeedsOriginal(ExtractionReason reason, Instant now) {
+        this.card = null;
+        this.extractionStatus = ExtractionStatus.NEEDS_ORIGINAL.name();
+        this.extractionReason = reason.name();
+        this.extractedAt = now;
+        this.updatedAt = now;
+    }
+
     public boolean refreshBody(Notice recrawled, Instant now) {
         if (Objects.equals(bodyHash, recrawled.bodyHash)) {
             return false;
@@ -115,7 +155,9 @@ public class Notice {
         this.bodyHash = recrawled.bodyHash;
         this.attachments = recrawled.attachments;
         this.deadlineAt = recrawled.deadlineAt;
+        this.deadlineAllDay = recrawled.deadlineAllDay;
         this.extractionStatus = recrawled.extractionStatus;
+        this.extractionReason = recrawled.extractionReason;
         this.updatedAt = now;
         return true;
     }
