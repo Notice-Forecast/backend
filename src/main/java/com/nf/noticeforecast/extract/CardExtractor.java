@@ -29,6 +29,7 @@ public class CardExtractor {
 
     private final LlmClient llmClient;
     private final JsonMapper jsonMapper;
+    private final PrepSchedule prepSchedule;
 
     public record Input(String title, String department, LocalDate postedAt, String bodyText,
                         Map<String, String> attachmentTexts) {
@@ -85,7 +86,8 @@ public class CardExtractor {
             errors = CardValidator.validate(card, input.bodyText() == null ? "" : input.bodyText(),
                     input.attachmentTexts());
             if (errors.isEmpty()) {
-                return new Extracted(card, deadlineOf(card), result.model(), attempt);
+                Card scheduled = prepSchedule.apply(card, input.postedAt());
+                return new Extracted(scheduled, deadlineOf(scheduled), result.model(), attempt);
             }
             log.info("card validation failed (attempt {}): {}", attempt, errors);
         }

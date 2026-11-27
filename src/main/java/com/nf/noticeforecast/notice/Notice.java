@@ -174,8 +174,12 @@ public class Notice {
         this.bodyText = recrawled.bodyText;
         this.bodyHash = recrawled.bodyHash;
         this.attachments = recrawled.attachments;
-        this.deadlineAt = recrawled.deadlineAt;
-        this.deadlineAllDay = recrawled.deadlineAllDay;
+        // 일반 공지는 다시 받은 값에 마감이 없다(AI가 채운다). 재추출 전까지 마감 임박 알림과 마감 전 변경 확인에서
+        // 빠지지 않도록, 제목에서 새 마감을 읽은 경우에만 바꾼다.
+        if (recrawled.deadlineAt != null) {
+            this.deadlineAt = recrawled.deadlineAt;
+            this.deadlineAllDay = recrawled.deadlineAllDay;
+        }
         this.extractionStatus = recrawled.extractionStatus;
         this.extractionReason = recrawled.extractionReason;
         this.updatedAt = now;

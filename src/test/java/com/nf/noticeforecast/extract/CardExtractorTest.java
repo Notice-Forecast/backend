@@ -58,7 +58,7 @@ class CardExtractorTest {
     }
 
     private static CardExtractor.Outcome run(FakeLlm llm) {
-        return new CardExtractor(llm, JsonMapper.builder().build()).extract(INPUT, TODAY);
+        return new CardExtractor(llm, JsonMapper.builder().build(), new PrepSchedule(PrepScheduleProperties.defaults())).extract(INPUT, TODAY);
     }
 
     @Test

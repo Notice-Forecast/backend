@@ -42,6 +42,14 @@ app:
     api-key: ${LLM_API_KEY:}
     model: ${LLM_MODEL:claude-haiku-5-5}
     effort: ${LLM_EFFORT:medium}
+  # 서류 종류별 기본 소요일(CLAUDE.md 8.3). OTHER는 AI 제안만 쓴다.
+  prep:
+    lead-days:
+      "[RECOMMENDATION]": 7
+      "[CERTIFICATE]": 1
+      "[SELF_INTRODUCTION]": 3
+      "[APPLICATION_FORM]": 1
+    no-document-days: 3
   vapid:
     public-key: ${VAPID_PUBLIC_KEY:}
     private-key: ${VAPID_PRIVATE_KEY:}
