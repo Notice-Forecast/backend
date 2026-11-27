@@ -1,0 +1,58 @@
+{
+  "source": "가톨릭대학교",
+  "articleNo": 278221,
+  "labeler": "A",
+  "scope": "FULL",
+  "deadline": "2027-01-05T17:00:00+09:00",
+  "target": "대한민국 국적 3학년 이상 재학생·복학 예정자 (3학년 1학기 진학 예정자 포함, 만 40세 미만, 직전학기 12학점·백분위 70점 이상, 졸업 후 농식품 분야 의무종사)",
+  "conditions": [
+    {
+      "field": "INTERNATIONAL",
+      "op": "IN",
+      "values": [
+        "FALSE"
+      ]
+    },
+    {
+      "field": "ENROLLMENT_STATUS",
+      "op": "IN",
+      "values": [
+        "ENROLLED",
+        "RETURNING"
+      ]
+    },
+    {
+      "field": "GRADE",
+      "op": "IN",
+      "values": [
+        "3",
+        "4"
+      ]
+    },
+    {
+      "field": "FREE_TEXT",
+      "op": "MANUAL",
+      "values": []
+    },
+    {
+      "field": "FREE_TEXT",
+      "op": "MANUAL",
+      "values": []
+    },
+    {
+      "field": "FREE_TEXT",
+      "op": "MANUAL",
+      "values": []
+    }
+  ],
+  "documents": [
+    "취창업계획서",
+    "개인(신용)정보 수집·이용·제공 및 조회 동의서",
+    "취·창업농 확약서"
+  ],
+  "verdicts": {
+    "P1": "CONDITIONAL",
+    "P2": "HIDDEN",
+    "P3": "HIDDEN"
+  }
+}

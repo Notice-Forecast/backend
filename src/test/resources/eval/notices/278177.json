@@ -1,0 +1,32 @@
+{
+  "source": "가톨릭대학교",
+  "articleNo": 278177,
+  "labeler": "A",
+  "scope": "FULL",
+  "deadline": "2026-12-11T15:00:00+09:00",
+  "target": "본교 정규과정 내·외국인 학부·대학원 재학생 (강제퇴사자·휴학 예정자 등 제외)",
+  "conditions": [
+    {
+      "field": "ENROLLMENT_STATUS",
+      "op": "IN",
+      "values": [
+        "ENROLLED",
+        "GRADUATE_STUDENT"
+      ]
+    },
+    {
+      "field": "FREE_TEXT",
+      "op": "MANUAL",
+      "values": []
+    }
+  ],
+  "documents": [
+    "입사신청서",
+    "개인정보 수집·이용 동의서"
+  ],
+  "verdicts": {
+    "P1": "CONDITIONAL",
+    "P2": "CONDITIONAL",
+    "P3": "HIDDEN"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "source": "가톨릭대학교",
+  "articleNo": 278195,
+  "labeler": "A",
+  "scope": "FULL",
+  "deadline": "2026-12-09T14:00:00+09:00",
+  "target": "만 15~34세 청년 (학력·성별 제한 없음, 결격사유 없는 자)",
+  "conditions": [
+    {
+      "field": "FREE_TEXT",
+      "op": "MANUAL",
+      "values": []
+    },
+    {
+      "field": "FREE_TEXT",
+      "op": "MANUAL",
+      "values": []
+    }
+  ],
+  "documents": [
+    "응시원서(온라인 지원서)"
+  ],
+  "verdicts": {
+    "P1": "CONDITIONAL",
+    "P2": "CONDITIONAL",
+    "P3": "CONDITIONAL"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "source": "가톨릭대학교",
+  "articleNo": 278044,
+  "labeler": "A",
+  "scope": "FULL",
+  "deadline": "2027-01-07T18:00:00+09:00",
+  "target": "대한민국 국적의 국내 대학 재학생 (학자금 지원구간 '라'구간 이하, 직전학기 성적 C0 이상)",
+  "conditions": [
+    {
+      "field": "INTERNATIONAL",
+      "op": "IN",
+      "values": [
+        "FALSE"
+      ]
+    },
+    {
+      "field": "ENROLLMENT_STATUS",
+      "op": "IN",
+      "values": [
+        "ENROLLED"
+      ]
+    },
+    {
+      "field": "GPA",
+      "op": "GTE",
+      "values": [
+        "2.0"
+      ]
+    },
+    {
+      "field": "FREE_TEXT",
+      "op": "MANUAL",
+      "values": []
+    }
+  ],
+  "documents": [
+    "한국장학재단 국가근로장학금 신청"
+  ],
+  "verdicts": {
+    "P1": "CONDITIONAL",
+    "P2": "CONDITIONAL",
+    "P3": "HIDDEN"
+  }
+}

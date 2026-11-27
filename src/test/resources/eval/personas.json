@@ -1,0 +1,29 @@
+{
+  "P1": {
+    "department": "컴퓨터정보공학부",
+    "extraDepartments": [],
+    "grade": 3,
+    "enrollmentStatus": "ENROLLED",
+    "gpa": 3.8,
+    "dormResident": false,
+    "international": false
+  },
+  "P2": {
+    "department": "공간디자인ㆍ소비자학과",
+    "extraDepartments": ["컴퓨터정보공학부"],
+    "grade": 2,
+    "enrollmentStatus": "ENROLLED",
+    "gpa": 3.2,
+    "dormResident": true,
+    "international": false
+  },
+  "P3": {
+    "department": "경영학과",
+    "extraDepartments": [],
+    "grade": 4,
+    "enrollmentStatus": "LEAVE",
+    "gpa": 2.8,
+    "dormResident": false,
+    "international": true
+  }
+}

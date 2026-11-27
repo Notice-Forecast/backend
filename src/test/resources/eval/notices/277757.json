@@ -1,0 +1,23 @@
+{
+  "source": "컴퓨터정보공학부",
+  "articleNo": 277757,
+  "labeler": "A",
+  "scope": "FULL",
+  "deadline": null,
+  "target": "기수료생 (2026년 8월까지 수료한 학생)",
+  "conditions": [
+    {
+      "field": "ENROLLMENT_STATUS",
+      "op": "IN",
+      "values": [
+        "COMPLETED"
+      ]
+    }
+  ],
+  "documents": [],
+  "verdicts": {
+    "P1": "HIDDEN",
+    "P2": "HIDDEN",
+    "P3": "HIDDEN"
+  }
+}

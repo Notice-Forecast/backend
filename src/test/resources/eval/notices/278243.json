@@ -1,0 +1,35 @@
+{
+  "source": "가톨릭대학교",
+  "articleNo": 278243,
+  "labeler": "A",
+  "scope": "FULL",
+  "deadline": "2026-12-16",
+  "target": "직전학기 15학점 이상·평점 2.5 이상이고 Trinity DESIGNer 오픈배지 선발 기준(3개 유형 중 하나)을 달성한 학생",
+  "conditions": [
+    {
+      "field": "GPA",
+      "op": "GTE",
+      "values": [
+        "2.5"
+      ]
+    },
+    {
+      "field": "FREE_TEXT",
+      "op": "MANUAL",
+      "values": []
+    },
+    {
+      "field": "FREE_TEXT",
+      "op": "MANUAL",
+      "values": []
+    }
+  ],
+  "documents": [
+    "트리니티 장학금 신청"
+  ],
+  "verdicts": {
+    "P1": "CONDITIONAL",
+    "P2": "CONDITIONAL",
+    "P3": "CONDITIONAL"
+  }
+}
