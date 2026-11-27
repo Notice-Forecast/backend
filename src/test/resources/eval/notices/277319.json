@@ -1,0 +1,51 @@
+{
+  "source": "공간디자인ㆍ소비자학과",
+  "articleNo": 277319,
+  "labeler": "A",
+  "scope": "FULL",
+  "deadline": "2026-11-08",
+  "target": "공간디자인ㆍ소비자학과 제1·제2전공 3·4학년 재학생 (성적기준 충족, 근로·인턴 중복 불가)",
+  "conditions": [
+    {
+      "field": "GRADE",
+      "op": "IN",
+      "values": [
+        "3",
+        "4"
+      ]
+    },
+    {
+      "field": "DEPARTMENT",
+      "op": "IN",
+      "values": [
+        "공간디자인ㆍ소비자학과"
+      ]
+    },
+    {
+      "field": "ENROLLMENT_STATUS",
+      "op": "IN",
+      "values": [
+        "ENROLLED"
+      ]
+    },
+    {
+      "field": "FREE_TEXT",
+      "op": "MANUAL",
+      "values": []
+    },
+    {
+      "field": "FREE_TEXT",
+      "op": "MANUAL",
+      "values": []
+    }
+  ],
+  "documents": [
+    "트리니티 장학 신청(근로B)",
+    "연구인턴 자기소개서"
+  ],
+  "verdicts": {
+    "P1": "HIDDEN",
+    "P2": "HIDDEN",
+    "P3": "HIDDEN"
+  }
+}

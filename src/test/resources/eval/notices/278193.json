@@ -1,0 +1,28 @@
+{
+  "source": "공간디자인ㆍ소비자학과",
+  "articleNo": 278193,
+  "labeler": "A",
+  "scope": "FULL",
+  "deadline": "2026-12-14T00:00:00+09:00",
+  "target": "일반대학원 공간디자인학과 석사·박사·석박사 통합과정 지원자",
+  "conditions": [
+    {
+      "field": "FREE_TEXT",
+      "op": "MANUAL",
+      "values": []
+    }
+  ],
+  "documents": [
+    "입학원서",
+    "수학계획서",
+    "대학 성적증명서",
+    "대학 졸업(예정)증명서",
+    "석사과정 성적증명서(박사)",
+    "석사 학위수여(예정)증명서(박사)"
+  ],
+  "verdicts": {
+    "P1": "HIDDEN",
+    "P2": "HIDDEN",
+    "P3": "HIDDEN"
+  }
+}

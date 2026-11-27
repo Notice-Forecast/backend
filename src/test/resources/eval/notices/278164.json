@@ -1,0 +1,60 @@
+{
+  "source": "가톨릭대학교",
+  "articleNo": 278164,
+  "labeler": "A",
+  "scope": "FULL",
+  "deadline": "2026-11-26",
+  "target": "5학기 이상 재학한 3·4학년 재학생, 평점 3.0 이상, 학자금 지원구간 7구간 이하, 킥오프 미팅 참석 가능자",
+  "conditions": [
+    {
+      "field": "GRADE",
+      "op": "IN",
+      "values": [
+        "3",
+        "4"
+      ]
+    },
+    {
+      "field": "ENROLLMENT_STATUS",
+      "op": "IN",
+      "values": [
+        "ENROLLED"
+      ]
+    },
+    {
+      "field": "SEMESTER_COUNT",
+      "op": "GTE",
+      "values": [
+        "5"
+      ]
+    },
+    {
+      "field": "GPA",
+      "op": "GTE",
+      "values": [
+        "3.0"
+      ]
+    },
+    {
+      "field": "FREE_TEXT",
+      "op": "MANUAL",
+      "values": []
+    },
+    {
+      "field": "FREE_TEXT",
+      "op": "MANUAL",
+      "values": []
+    }
+  ],
+  "documents": [
+    "트리니티 장학금 신청",
+    "장학금 신청서(학생용)",
+    "학자금 지원구간 통지서",
+    "개인정보 수집·이용 동의서"
+  ],
+  "verdicts": {
+    "P1": "CONDITIONAL",
+    "P2": "HIDDEN",
+    "P3": "HIDDEN"
+  }
+}

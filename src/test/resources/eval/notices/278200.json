@@ -1,0 +1,21 @@
+{
+  "source": "가톨릭대학교",
+  "articleNo": 278200,
+  "labeler": "A",
+  "scope": "FULL",
+  "deadline": "2026-12-06",
+  "target": "본교 교원",
+  "conditions": [
+    {
+      "field": "FREE_TEXT",
+      "op": "MANUAL",
+      "values": []
+    }
+  ],
+  "documents": [],
+  "verdicts": {
+    "P1": "HIDDEN",
+    "P2": "HIDDEN",
+    "P3": "HIDDEN"
+  }
+}
