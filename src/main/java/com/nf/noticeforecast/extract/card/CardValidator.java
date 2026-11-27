@@ -18,6 +18,7 @@ public final class CardValidator {
     private static final Set<String> NUMBER_FIELDS = Set.of("GPA", "SEMESTER_COUNT");
     private static final Set<String> BOOLEAN_FIELDS = Set.of("DORM_RESIDENT", "INTERNATIONAL");
     private static final Set<String> GRADES = Set.of("1", "2", "3", "4", "5", "6");
+    private static final double MAX_GPA = 4.5;
 
     private CardValidator() {
     }
@@ -90,6 +91,8 @@ public final class CardValidator {
         } else if (NUMBER_FIELDS.contains(field)) {
             if (!("GTE".equals(op) || "LTE".equals(op)) || values.size() != 1 || !number(values.getFirst())) {
                 errors.add(path + ": " + field + "는 op GTE 또는 LTE와 숫자 값 하나여야 합니다.");
+            } else if ("GPA".equals(field) && Double.parseDouble(values.getFirst()) > MAX_GPA) {
+                errors.add(path + ": GPA는 4.5 만점 평점입니다. 백분위나 100점 만점 점수는 GPA로 바꾸지 말고 FREE_TEXT로 넣으세요.");
             }
         } else if (BOOLEAN_FIELDS.contains(field)) {
             if (!"IN".equals(op) || values.size() != 1 || !Set.of("TRUE", "FALSE").contains(values.getFirst())) {

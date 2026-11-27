@@ -32,4 +32,36 @@ public class JsoupSchoolSiteClient implements SchoolSiteClient {
                 .execute();
         return new FetchResult(response.statusCode(), response.body());
     }
+
+    @Override
+    public DownloadResult download(String url, long maxBytes) throws IOException {
+        try {
+            throttle.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("interrupted", e);
+        }
+        Connection.Response response = Jsoup.connect(url)
+                .userAgent(USER_AGENT)
+                .timeout(TIMEOUT_MILLIS)
+                .followRedirects(false)
+                .ignoreHttpErrors(true)
+                .ignoreContentType(true)
+                .maxBodySize((int) Math.min(Integer.MAX_VALUE, maxBytes + 1))
+                .execute();
+        int status = response.statusCode();
+        String contentType = response.contentType();
+        if (status != 200) {
+            return new DownloadResult(status, response.header("Location"), contentType, null, false);
+        }
+        String length = response.header("Content-Length");
+        if (length != null && length.matches("\\d+") && Long.parseLong(length) > maxBytes) {
+            return new DownloadResult(status, null, contentType, null, true);
+        }
+        byte[] bytes = response.bodyAsBytes();
+        if (bytes.length > maxBytes) {
+            return new DownloadResult(status, null, contentType, null, true);
+        }
+        return new DownloadResult(status, null, contentType, bytes, false);
+    }
 }

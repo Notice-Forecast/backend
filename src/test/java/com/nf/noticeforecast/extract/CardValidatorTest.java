@@ -94,6 +94,13 @@ class CardValidatorTest {
     }
 
     @Test
+    void gpaIsOnFourPointFiveScale() {
+        Card card = card(List.of(condition("GPA", "GTE", List.of("70"), "총 평균평점 3.0 이상")), List.of());
+
+        assertThat(CardValidator.validate(card, BODY, Map.of())).singleElement().asString().contains("4.5 만점");
+    }
+
+    @Test
     void booleanFieldsUseTrueOrFalse() {
         Card card = card(List.of(condition("INTERNATIONAL", "IN", List.of("false"), "3·4학년 재학생")), List.of());
 

@@ -5,6 +5,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import org.springframework.core.io.ClassPathResource;
 
 /** 프롬프트 본문은 resources/prompts/extract-card.md에 둔다(CLAUDE.md 8.3). */
@@ -19,9 +20,14 @@ final class ExtractPrompt {
         return TEMPLATE.replace("{{today}}", today.toString()).replace("{{postedAt}}", postedAt.toString());
     }
 
-    static String user(String title, String department, LocalDate postedAt, String bodyText) {
-        return "제목: " + title + "\n부서: " + (department == null ? "" : department) + "\n게시일: " + postedAt
-                + "\n\n본문:\n" + bodyText;
+    static String user(String title, String department, LocalDate postedAt, String bodyText,
+                       Map<String, String> attachmentTexts) {
+        StringBuilder user = new StringBuilder("제목: ").append(title)
+                .append("\n부서: ").append(department == null ? "" : department)
+                .append("\n게시일: ").append(postedAt)
+                .append("\n\n본문:\n").append(bodyText == null || bodyText.isBlank() ? "(본문 텍스트 없음)" : bodyText);
+        attachmentTexts.forEach((name, text) -> user.append("\n\n[첨부: ").append(name).append("]\n").append(text));
+        return user.toString();
     }
 
     static String retry(String user, List<String> errors) {

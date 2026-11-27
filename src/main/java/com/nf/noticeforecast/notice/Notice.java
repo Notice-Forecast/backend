@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import com.nf.noticeforecast.attachment.AttachmentText;
 import com.nf.noticeforecast.extract.card.Card;
 import java.time.Instant;
 import java.util.List;
@@ -61,6 +62,11 @@ public class Notice {
 
     @JdbcTypeCode(SqlTypes.JSON)
     private List<NoticeAttachment> attachments;
+
+    /** 마스킹한 첨부 텍스트(CLAUDE.md 8.5). 아직 받지 않았으면 null. 본문 해시나 첨부 목록이 바뀌면 null로 돌려 다시 받는다. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "json")
+    private List<AttachmentText> attachmentTexts;
 
     private Instant deadlineAt;
 
@@ -125,6 +131,19 @@ public class Notice {
         return extractionReason == null ? null : ExtractionReason.valueOf(extractionReason);
     }
 
+    public boolean hasAttachments() {
+        return attachments != null && !attachments.isEmpty();
+    }
+
+    public boolean attachmentsCollected() {
+        return attachmentTexts != null;
+    }
+
+    public void applyAttachmentTexts(List<AttachmentText> texts, Instant now) {
+        this.attachmentTexts = List.copyOf(texts);
+        this.updatedAt = now;
+    }
+
     /** 변경 감지(notice_change)는 다음 작업에서 붙인다. 지금은 카드가 바뀔 때마다 revision을 올린다. */
     public void applyCard(Card card, Instant deadlineAt, boolean deadlineAllDay, Instant now) {
         this.card = card;
@@ -147,9 +166,10 @@ public class Notice {
     }
 
     public boolean refreshBody(Notice recrawled, Instant now) {
-        if (Objects.equals(bodyHash, recrawled.bodyHash)) {
+        if (Objects.equals(bodyHash, recrawled.bodyHash) && Objects.equals(attachments, recrawled.attachments)) {
             return false;
         }
+        this.attachmentTexts = null;
         this.title = recrawled.title;
         this.bodyText = recrawled.bodyText;
         this.bodyHash = recrawled.bodyHash;
