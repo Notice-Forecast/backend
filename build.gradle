@@ -35,6 +35,9 @@ dependencies {
     implementation 'org.apache.pdfbox:pdfbox:3.0.8'
     implementation 'kr.dogfoot:hwplib:1.1.11'
     implementation 'nl.martijndwars:web-push:5.1.2'
+    // web-push가 런타임으로만 끌어오는 라이브러리. send()의 응답 타입과 throws 선언 때문에 컴파일에도 둔다(같은 버전).
+    implementation 'org.apache.httpcomponents:httpclient:4.5.13'
+    implementation 'org.bitbucket.b_c:jose4j:0.7.9'
     implementation 'org.bouncycastle:bcprov-jdk18on:1.87'
 
     compileOnly 'org.projectlombok:lombok'
