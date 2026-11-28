@@ -51,6 +51,30 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
     @Query("update Notice n set n.seriesId = :seriesId where n.id = :noticeId")
     void assignSeries(Long noticeId, Long seriesId);
 
+    /** 계열별 회차 수와 첫·마지막 게시일. [seriesId, count, minPostedAt, maxPostedAt] */
+    @Query("""
+            select n.seriesId, count(n), min(n.postedAt), max(n.postedAt)
+            from Notice n
+            where n.seriesId is not null
+            group by n.seriesId
+            having count(n) >= :minRounds
+            """)
+    List<Object[]> countRoundsBySeries(long minRounds);
+
+    @Query("""
+            select new com.nf.noticeforecast.notice.NoticeTitleRow(n.id, n.seriesId, n.title, n.department, n.category,
+                n.postedAt)
+            from Notice n
+            where n.seriesId = :seriesId
+            order by n.postedAt asc, n.id asc
+            """)
+    List<NoticeTitleRow> findTitlesBySeries(Long seriesId);
+
+    @Transactional
+    @Modifying
+    @Query("update Notice n set n.seriesId = :to where n.seriesId = :from")
+    int moveSeries(Long from, Long to);
+
     @Query("""
             select new com.nf.noticeforecast.notice.NoticeAlertRow(n.id, n.title, n.deadlineAt, n.deadlineAllDay,
                 n.revision, n.card)

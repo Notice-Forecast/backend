@@ -42,7 +42,8 @@ public class ForecastSeries {
     @Column(columnDefinition = "json")
     private List<String> titleKeywords;
 
-    /** 예보 기준점(학기 시작/끝 등). 시드로 고를 때 정한다. 정하기 전에는 null */
+    /** 예보 기준점. 시드로 고를 때 정한다. 정하기 전에는 null. enum CHECK 제약을 피하려고 문자열로 둔다 */
+    @lombok.Getter(lombok.AccessLevel.NONE)
     @Column(length = 30)
     private String anchor;
 
@@ -51,6 +52,19 @@ public class ForecastSeries {
 
     @Column(nullable = false)
     private Instant createdAt;
+
+    public SeriesAnchor getAnchor() {
+        return anchor == null ? null : SeriesAnchor.valueOf(anchor);
+    }
+
+    /** 시드로 고를 때 이름과 기준점을 붙인다(11/28 결정). */
+    public void curate(String name, SeriesAnchor anchor, boolean seed) {
+        if (name != null && !name.isBlank()) {
+            this.name = name.strip().length() > 200 ? name.strip().substring(0, 200) : name.strip();
+        }
+        this.anchor = anchor == null ? null : anchor.name();
+        this.seed = seed;
+    }
 
     public static ForecastSeries startFrom(String normalizedTitle, String fallbackTitle, String department,
                                            String category, Instant now) {
