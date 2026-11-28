@@ -5,6 +5,7 @@ import com.nf.noticeforecast.device.dto.DeviceResponse;
 import com.nf.noticeforecast.device.dto.DeviceRestoreResponse;
 import com.nf.noticeforecast.device.dto.DeviceSettingsRequest;
 import com.nf.noticeforecast.device.dto.PushSubscriptionRequest;
+import com.nf.noticeforecast.forecast.SeriesFollowRepository;
 import com.nf.noticeforecast.global.error.BusinessException;
 import com.nf.noticeforecast.global.error.ErrorCode;
 import com.nf.noticeforecast.global.error.InvalidFieldException;
@@ -29,6 +30,7 @@ public class DeviceService {
     private final NoticeStatusRepository noticeStatusRepository;
     private final ReportRepository reportRepository;
     private final PushLogRepository pushLogRepository;
+    private final SeriesFollowRepository seriesFollowRepository;
     private final RestoreCodeGenerator restoreCodeGenerator;
 
     @Transactional
@@ -93,6 +95,7 @@ public class DeviceService {
         noticeStatusRepository.deleteAllByDeviceId(deviceId);
         reportRepository.detachDevice(deviceId);
         pushLogRepository.deleteAllByDeviceId(deviceId);
+        seriesFollowRepository.deleteAllByDeviceId(deviceId);
         deviceRepository.deleteById(deviceId);
     }
 
