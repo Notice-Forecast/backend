@@ -8,6 +8,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import com.nf.noticeforecast.device.dto.PushSubscriptionRequest;
+import com.nf.noticeforecast.forecast.SeriesFollowRepository;
 import com.nf.noticeforecast.global.error.InvalidFieldException;
 import com.nf.noticeforecast.notice.NoticeStatusRepository;
 import com.nf.noticeforecast.notice.ReportRepository;
@@ -20,7 +21,8 @@ class DeviceServiceTest {
     private final PushSubscriptionRepository pushSubscriptions = mock(PushSubscriptionRepository.class);
     private final DeviceService service = new DeviceService(
             mock(DeviceRepository.class), pushSubscriptions, mock(NoticeStatusRepository.class),
-            mock(ReportRepository.class), mock(PushLogRepository.class), new RestoreCodeGenerator());
+            mock(ReportRepository.class), mock(PushLogRepository.class), mock(SeriesFollowRepository.class),
+            new RestoreCodeGenerator());
 
     private static String b64(int byteLength) {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(new byte[byteLength]);

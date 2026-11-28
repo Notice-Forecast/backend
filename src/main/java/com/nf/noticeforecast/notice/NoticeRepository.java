@@ -94,6 +94,15 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
             """)
     List<NoticeAlertRow> findAlertRows(java.util.Collection<Long> ids);
 
+    @Query("""
+            select new com.nf.noticeforecast.notice.ForecastNoticeRow(
+                n.id, n.seriesId, n.sourceId, n.title, n.postedAt, n.card)
+            from Notice n
+            where n.seriesId in :seriesIds
+            order by n.postedAt asc, n.id asc
+            """)
+    List<ForecastNoticeRow> findForecastNoticesBySeriesIds(java.util.Collection<Long> seriesIds);
+
     /** 알림량 실측용(CLAUDE.md 15.2). 이 시각 이후 게시되어 카드가 있는 공지. 본문은 읽지 않는다. */
     @Query("""
             select new com.nf.noticeforecast.notice.NoticeCardRow(n.id, n.sourceId, n.card)
