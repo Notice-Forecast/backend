@@ -35,6 +35,8 @@ import org.springframework.stereotype.Service;
 public class SeriesLinker {
 
     static final int MAX_CANDIDATES = 3;
+    /** 과거 이력을 처음 묶을 때 30분 가까이 걸려서, 이만큼 처리할 때마다 진행 상황을 로그로 남긴다. */
+    private static final int PROGRESS_EVERY = 100;
 
     private final NoticeRepository noticeRepository;
     private final ForecastSeriesRepository seriesRepository;
@@ -106,6 +108,10 @@ public class SeriesLinker {
         int calls = 0;
         int failed = 0;
         String stoppedBy = null;
+        if (!pending.isEmpty()) {
+            log.info("series linking started: pending={}, alreadyLinked={}", pending.size(), index.size());
+        }
+        int processed = 0;
         for (NoticeTitleRow row : pending) {
             List<Candidate> candidates = candidates(row, index);
             Long seriesId = null;
@@ -133,9 +139,16 @@ public class SeriesLinker {
             }
             noticeRepository.assignSeries(row.id(), seriesId);
             index.add(entry(row, seriesId));
+            processed++;
+            if (processed % PROGRESS_EVERY == 0) {
+                log.info("series linking progress: {}/{} (created={}, joined={}, llmCalls={}, failed={})",
+                        processed, pending.size(), created, joined, calls, failed);
+            }
         }
         LinkReport report = new LinkReport(true, created + joined, created, joined, calls, failed, stoppedBy);
-        log.info("series linking finished: {}", report);
+        if (!pending.isEmpty()) {
+            log.info("series linking finished: {}", report);
+        }
         return report;
     }
 
