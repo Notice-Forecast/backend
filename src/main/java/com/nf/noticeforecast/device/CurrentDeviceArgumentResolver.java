@@ -29,6 +29,10 @@ public class CurrentDeviceArgumentResolver implements HandlerMethodArgumentResol
                                   NativeWebRequest request, WebDataBinderFactory binderFactory) {
         String deviceId = request.getHeader(HEADER);
         if (deviceId == null || deviceId.isBlank()) {
+            CurrentDevice annotation = parameter.getParameterAnnotation(CurrentDevice.class);
+            if (annotation != null && !annotation.required()) {
+                return null;
+            }
             throw new BusinessException(ErrorCode.DEVICE_REQUIRED);
         }
         Device device = deviceRepository.findById(deviceId)

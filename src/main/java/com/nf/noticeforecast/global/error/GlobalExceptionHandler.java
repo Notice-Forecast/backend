@@ -24,6 +24,11 @@ public class GlobalExceptionHandler {
         return respond(ex.getErrorCode(), null);
     }
 
+    @ExceptionHandler(InvalidFieldException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidField(InvalidFieldException ex) {
+        return respond(ErrorCode.VALIDATION_FAILED, Map.of(ex.getField(), ex.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleInvalidBody(MethodArgumentNotValidException ex) {
         Map<String, String> fields = new LinkedHashMap<>();

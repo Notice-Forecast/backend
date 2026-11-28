@@ -10,4 +10,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Parameter(hidden = true)
 public @interface CurrentDevice {
+
+    /** false면 X-Device-Id가 없을 때 null을 넘긴다. 헤더가 있는데 등록되지 않은 ID면 그래도 404다. */
+    boolean required() default true;
 }
