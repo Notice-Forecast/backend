@@ -50,6 +50,7 @@ public class NoticeQueryService {
     private final NoticeRepository noticeRepository;
     private final NoticeSourceRepository noticeSourceRepository;
     private final NoticeStatusRepository noticeStatusRepository;
+    private final NoticeChangeRepository noticeChangeRepository;
     private final EntityManager entityManager;
     private final Clock clock;
 
@@ -88,7 +89,7 @@ public class NoticeQueryService {
     /** 목록에 필요한 컬럼만 읽은 행. 본문·첨부 텍스트는 크기가 커서 목록에서는 읽지 않는다. */
     record NoticeRow(Long id, Long sourceId, String title, String department, String category, Instant postedAt,
                      Instant deadlineAt, boolean deadlineAllDay, int revision, String extractionStatus,
-                     String extractionReason, Card card) {
+                     String extractionReason, String changeSummary, Card card) {
     }
 
     /** 커서 방식이라 전체 개수는 필요 없어서 COUNT 없이 limit 개만 받는다. */
@@ -97,7 +98,7 @@ public class NoticeQueryService {
         CriteriaQuery<Tuple> cq = cb.createTupleQuery();
         Root<Notice> root = cq.from(Notice.class);
         List<String> columns = List.of("id", "sourceId", "title", "department", "category", "postedAt", "deadlineAt",
-                "deadlineAllDay", "revision", "extractionStatus", "extractionReason", "card");
+                "deadlineAllDay", "revision", "extractionStatus", "extractionReason", "changeSummary", "card");
         cq.multiselect(columns.stream().<Selection<?>>map(name -> root.get(name).alias(name)).toList())
                 .where(spec.toPredicate(root, cq, cb))
                 .orderBy(cb.desc(root.get("postedAt")), cb.desc(root.get("id")));
@@ -107,7 +108,8 @@ public class NoticeQueryService {
                         t.get("category", String.class), t.get("postedAt", Instant.class),
                         t.get("deadlineAt", Instant.class), t.get("deadlineAllDay", Boolean.class),
                         t.get("revision", Integer.class), t.get("extractionStatus", String.class),
-                        t.get("extractionReason", String.class), t.get("card", Card.class)))
+                        t.get("extractionReason", String.class), t.get("changeSummary", String.class),
+                        t.get("card", Card.class)))
                 .toList();
     }
 
@@ -125,7 +127,14 @@ public class NoticeQueryService {
                 notice.getRevision(), KoreanTime.from(notice.getUpdatedAt()), false,
                 new NoticeDetailResponse.Extraction(notice.getExtractionStatus(), notice.getExtractionReason(),
                         KoreanTime.from(notice.getExtractedAt())),
-                notice.getCard(), null, List.of(), null, myStatus);
+                notice.getCard(), notice.getChangeSummary(), changesOf(id), null, myStatus);
+    }
+
+    private List<NoticeDetailResponse.Change> changesOf(Long noticeId) {
+        return noticeChangeRepository.findAllByNoticeIdOrderByRevisionDescIdAsc(noticeId).stream()
+                .map(change -> new NoticeDetailResponse.Change(change.getRevision(), KoreanTime.from(change.getChangedAt()),
+                        change.getField(), change.getBeforeValue(), change.getAfterValue()))
+                .toList();
     }
 
     /** 본교 공지는 모두, 학과 공지는 기기의 주전공·추가 전공과 이름이 같은 사이트만(기기·matchFilter가 없으면 본교만). */
@@ -210,7 +219,8 @@ public class NoticeQueryService {
                 row.category() == null ? null : NoticeCategory.valueOf(row.category()),
                 KoreanTime.from(row.postedAt()), deadlineText(row.deadlineAt(), row.deadlineAllDay()), row.revision(),
                 !row.postedAt().isBefore(now.minus(NEW_WINDOW)), ExtractionStatus.valueOf(row.extractionStatus()),
-                row.extractionReason() == null ? null : ExtractionReason.valueOf(row.extractionReason()), null,
+                row.extractionReason() == null ? null : ExtractionReason.valueOf(row.extractionReason()),
+                row.changeSummary(),
                 card == null ? null : card.forStudents(), conditions,
                 status == null ? null : status.getStatus(),
                 status == null ? null : KoreanTime.from(status.getUpdatedAt()));

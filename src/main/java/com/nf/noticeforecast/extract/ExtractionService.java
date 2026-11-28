@@ -5,8 +5,11 @@ import com.nf.noticeforecast.attachment.AttachmentText;
 import com.nf.noticeforecast.global.error.BusinessException;
 import com.nf.noticeforecast.global.error.ErrorCode;
 import com.nf.noticeforecast.global.time.KoreanTime;
+import com.nf.noticeforecast.notice.CardDiff;
 import com.nf.noticeforecast.notice.ExtractionReason;
 import com.nf.noticeforecast.notice.Notice;
+import com.nf.noticeforecast.notice.NoticeChange;
+import com.nf.noticeforecast.notice.NoticeChangeRepository;
 import com.nf.noticeforecast.notice.NoticeRepository;
 import java.time.Duration;
 import java.time.Instant;
@@ -26,6 +29,7 @@ public class ExtractionService {
     private static final Duration RECENT = Duration.ofDays(30);
 
     private final NoticeRepository noticeRepository;
+    private final NoticeChangeRepository noticeChangeRepository;
     private final CardExtractor extractor;
     private final AttachmentCollector attachmentCollector;
     private final LlmProperties llmProperties;
@@ -91,9 +95,17 @@ public class ExtractionService {
         switch (outcome) {
             case CardExtractor.Extracted e -> {
                 CardExtractor.Deadline deadline = e.deadline();
-                notice.applyCard(e.card(), deadline == null ? null : deadline.at(),
+                List<CardDiff.CardChange> changes = notice.applyCard(e.card(), deadline == null ? null : deadline.at(),
                         deadline != null && deadline.allDay(), now);
                 noticeRepository.save(notice);
+                if (!changes.isEmpty()) {
+                    Instant changedAt = now;
+                    noticeChangeRepository.saveAll(changes.stream()
+                            .map(change -> NoticeChange.of(notice.getId(), notice.getRevision(), change, changedAt))
+                            .toList());
+                    log.info("notice {} changed (revision {}): {}", notice.getArticleNo(), notice.getRevision(),
+                            notice.getChangeSummary());
+                }
             }
             case CardExtractor.Rejected r -> {
                 log.info("notice {} needs original: {}", notice.getArticleNo(), r.errors());
