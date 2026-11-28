@@ -87,6 +87,9 @@ public class Notice {
 
     private Instant extractedAt;
 
+    /** 공지 계열(forecast_series). 계열 판별 전에는 null */
+    private Long seriesId;
+
     /** 마지막 변경의 요약 문구(서버 규칙, 11/28 결정). 바뀐 적이 없으면 null */
     @Column(length = 500)
     private String changeSummary;

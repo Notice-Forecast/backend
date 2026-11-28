@@ -3,7 +3,9 @@ package com.nf.noticeforecast.notice;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface NoticeRepository extends JpaRepository<Notice, Long> {
@@ -34,4 +36,18 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
             order by n.postedAt desc
             """)
     List<Notice> findExtractionCandidates(Instant since);
+
+    /** 계열 판별용. 본문 없이 제목·부서·게시일만 읽는다. 과거 이력도 포함한다. */
+    @Query("""
+            select new com.nf.noticeforecast.notice.NoticeTitleRow(n.id, n.seriesId, n.title, n.department, n.category,
+                n.postedAt)
+            from Notice n
+            order by n.postedAt asc, n.id asc
+            """)
+    List<NoticeTitleRow> findAllTitles();
+
+    @Transactional
+    @Modifying
+    @Query("update Notice n set n.seriesId = :seriesId where n.id = :noticeId")
+    void assignSeries(Long noticeId, Long seriesId);
 }
