@@ -8,6 +8,7 @@ import com.nf.noticeforecast.device.dto.PushSubscriptionRequest;
 import com.nf.noticeforecast.global.error.BusinessException;
 import com.nf.noticeforecast.global.error.ErrorCode;
 import com.nf.noticeforecast.notice.NoticeStatusRepository;
+import com.nf.noticeforecast.notice.ReportRepository;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
@@ -22,6 +23,7 @@ public class DeviceService {
     private final DeviceRepository deviceRepository;
     private final PushSubscriptionRepository pushSubscriptionRepository;
     private final NoticeStatusRepository noticeStatusRepository;
+    private final ReportRepository reportRepository;
     private final RestoreCodeGenerator restoreCodeGenerator;
 
     @Transactional
@@ -69,6 +71,7 @@ public class DeviceService {
     public void delete(String deviceId) {
         pushSubscriptionRepository.deleteByDeviceId(deviceId);
         noticeStatusRepository.deleteAllByDeviceId(deviceId);
+        reportRepository.detachDevice(deviceId);
         deviceRepository.deleteById(deviceId);
     }
 
