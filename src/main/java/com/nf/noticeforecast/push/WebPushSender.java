@@ -60,8 +60,15 @@ public class WebPushSender implements PushSender {
             return new Result(Outcome.GONE, 0);
         }
         try {
-            HttpRequest request = buildRequest(service(), subscription.getEndpoint(), subscription.getP256dh(),
-                    subscription.getAuth(), payloadJson);
+            PushService push = service();
+            HttpRequest request;
+            try {
+                request = buildRequest(push, subscription.getEndpoint(), subscription.getP256dh(),
+                        subscription.getAuth(), payloadJson);
+            } catch (Exception e) {
+                log.warn("push key invalid for device {}: {}", subscription.getDeviceId(), e.toString());
+                return new Result(Outcome.GONE, 0);
+            }
             int status = httpClient.send(request, HttpResponse.BodyHandlers.discarding()).statusCode();
             if (status >= 200 && status < 300) {
                 return new Result(Outcome.SENT, status);

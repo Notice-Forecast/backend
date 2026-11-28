@@ -31,8 +31,10 @@ class SeriesTitlesTest {
     }
 
     @Test
-    void 부서_비교는_괄호와_공백을_뺀다() {
+    void 부서_비교는_괄호와_공백과_가운뎃점을_뺀다() {
         assertThat(SeriesTitles.departmentKey("평생교육원운영팀(성심)")).isEqualTo("평생교육원운영팀");
+        assertThat(SeriesTitles.departmentKey("공간디자인ㆍ소비자학과"))
+                .isEqualTo(SeriesTitles.departmentKey("공간디자인·소비자학과"));
         assertThat(SeriesTitles.departmentKey(null)).isEmpty();
     }
 

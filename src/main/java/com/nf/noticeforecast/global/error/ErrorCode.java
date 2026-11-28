@@ -16,6 +16,7 @@ public enum ErrorCode {
     NOTICE_BODY_MISSING(HttpStatus.CONFLICT, "본문이 없는 공지라 AI 추출을 할 수 없습니다."),
     LLM_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "AI 추출 설정(LLM_API_KEY)이 없습니다."),
     SERIES_NOT_FOUND(HttpStatus.NOT_FOUND, "예보 계열을 찾을 수 없습니다."),
+    SERIES_LINKING_IN_PROGRESS(HttpStatus.CONFLICT, "계열 판별이 진행 중입니다. 끝난 뒤 다시 시도해 주세요."),
     RESTORE_CODE_INVALID(HttpStatus.NOT_FOUND, "복구 코드를 찾을 수 없습니다."),
     NOT_FOUND(HttpStatus.NOT_FOUND, "요청한 주소를 찾을 수 없습니다."),
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "지원하지 않는 요청 방식입니다."),

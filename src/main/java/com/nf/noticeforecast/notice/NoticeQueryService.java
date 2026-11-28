@@ -154,13 +154,15 @@ public class NoticeQueryService {
         return ids;
     }
 
-    private Specification<Notice> spec(ListQuery query, NoticeCursor cursor, Set<Long> visibleSources, Device device,
-                                       Instant now) {
+    Specification<Notice> spec(ListQuery query, NoticeCursor cursor, Set<Long> visibleSources, Device device,
+                               Instant now) {
         Instant todayStart = LocalDate.ofInstant(now, KoreanTime.ZONE).atStartOfDay(KoreanTime.ZONE).toInstant();
         return (root, criteriaQuery, cb) -> {
             List<Predicate> where = new ArrayList<>();
-            // 예보용 과거 이력(본문을 받지 않은 글)은 목록에 내지 않는다(11/28 결정).
-            where.add(cb.isNotNull(root.get("bodyHash")));
+            // 예보용 과거 이력(본문을 받지 않은 PENDING 글)만 목록에서 뺀다. 명단성 공지(NEEDS_ORIGINAL)는 포함한다.
+            where.add(cb.or(
+                    cb.isNotNull(root.get("bodyHash")),
+                    cb.notEqual(root.get("extractionStatus"), ExtractionStatus.PENDING.name())));
             where.add(visibleSources.isEmpty() ? cb.disjunction() : root.get("sourceId").in(visibleSources));
             if (query.category() != null) {
                 where.add(cb.equal(root.get("category"), query.category().name()));

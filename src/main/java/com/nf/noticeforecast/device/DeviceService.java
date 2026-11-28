@@ -14,6 +14,7 @@ import com.nf.noticeforecast.push.PushLogRepository;
 import com.nf.noticeforecast.notice.ReportRepository;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Base64;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -65,8 +66,20 @@ public class DeviceService {
         if (!PushEndpointPolicy.allowed(request.endpoint())) {
             throw new InvalidFieldException("endpoint", "지원하지 않는 푸시 서비스 주소입니다.");
         }
+        validateBase64UrlKey(request.keys().p256dh(), 65, "keys.p256dh", "올바른 푸시 공개키가 아닙니다.");
+        validateBase64UrlKey(request.keys().auth(), 16, "keys.auth", "올바른 푸시 인증키가 아닙니다.");
         pushSubscriptionRepository.upsert(deviceId, request.endpoint(), request.keys().p256dh(),
                 request.keys().auth(), Instant.now());
+    }
+
+    private static void validateBase64UrlKey(String value, int expectedBytes, String field, String message) {
+        try {
+            if (Base64.getUrlDecoder().decode(value).length != expectedBytes) {
+                throw new InvalidFieldException(field, message);
+            }
+        } catch (IllegalArgumentException e) {
+            throw new InvalidFieldException(field, message);
+        }
     }
 
     @Transactional

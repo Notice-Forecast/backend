@@ -98,4 +98,11 @@ class PrepScheduleTest {
         assertThat(prepOf(prepSchedule.apply(card(List.of(allDayDeadline), List.of()), POSTED)).at())
                 .isEqualTo("2026-11-18");
     }
+
+    @Test
+    void 게시일이_마감보다_뒤면_준비_시작을_넣지_않는다() {
+        LocalDate afterDeadline = LocalDate.of(2026, 11, 25);
+
+        assertThat(prepOf(prepSchedule.apply(card(List.of(DEADLINE), List.of()), afterDeadline))).isNull();
+    }
 }

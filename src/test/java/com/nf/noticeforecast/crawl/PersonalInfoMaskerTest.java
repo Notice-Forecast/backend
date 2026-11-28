@@ -55,4 +55,16 @@ class PersonalInfoMaskerTest {
     void 붙여_쓴_선발결과도_명단성_제목으로_본다() {
         assertThat(masker.isRosterTitle("2026-2 근로장학생 선발결과 안내")).isTrue();
     }
+
+    @Test
+    void 괄호_뒤_공백이_있는_전화번호를_가린다() {
+        assertThat(masker.mask("문의 (02) 2164-4000 / 02) 2164-4001"))
+                .isEqualTo("문의 [가림] / [가림]");
+    }
+
+    @Test
+    void YYYYMMDD_날짜는_가리지_않고_학번은_계속_가린다() {
+        assertThat(masker.mask("제출일 20261128, 학번 202312345, 코드 20239999"))
+                .isEqualTo("제출일 20261128, 학번 [가림], 코드 [가림]");
+    }
 }

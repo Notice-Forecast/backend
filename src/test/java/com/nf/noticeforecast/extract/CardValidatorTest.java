@@ -144,4 +144,20 @@ class CardValidatorTest {
 
         assertThat(CardValidator.validate(card, BODY, Map.of())).singleElement().asString().contains("forStudents");
     }
+
+    @Test
+    void rejectsAiSuggestedOnNonPrepSchedule() {
+        ScheduleItem guessedDeadline = new ScheduleItem("APPLY_END", "신청 마감", "2026-11-26", true, "AI_SUGGESTED");
+
+        assertThat(CardValidator.validate(card(List.of(), List.of(guessedDeadline)), BODY, Map.of()))
+                .singleElement().asString().contains("NOTICE");
+    }
+
+    @Test
+    void rejectsNaNInfinityAndNegativeNumbers() {
+        for (String bad : List.of("NaN", "Infinity", "-Infinity", "-1.0")) {
+            Card c = card(List.of(condition("GPA", "GTE", List.of(bad), "총 평균평점 3.0 이상")), List.of());
+            assertThat(CardValidator.validate(c, BODY, Map.of())).singleElement().asString().contains("숫자");
+        }
+    }
 }

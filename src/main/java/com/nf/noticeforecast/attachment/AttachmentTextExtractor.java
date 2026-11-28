@@ -1,12 +1,16 @@
 package com.nf.noticeforecast.attachment;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Comparator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import kr.dogfoot.hwplib.object.HWPFile;
@@ -25,6 +29,15 @@ import org.jsoup.parser.Parser;
 public final class AttachmentTextExtractor {
 
     public enum Format { PDF, HWP, HWPX, UNSUPPORTED }
+
+    /** -Xmx256m 운영 환경에서 HWPX 압축 폭탄으로 OOM이 나지 않도록 제한한다. */
+    static final int MAX_HWPX_ENTRIES = 200;
+    static final int MAX_HWPX_ENTRY_BYTES = 2 * 1024 * 1024;
+    static final int MAX_HWPX_TOTAL_BYTES = 8 * 1024 * 1024;
+    private static final Pattern HWPX_SECTION = Pattern.compile("^Contents/section(\\d+)\\.xml$");
+    private static final Comparator<String> HWPX_SECTION_ORDER = Comparator
+            .comparingInt(AttachmentTextExtractor::sectionNumber)
+            .thenComparing(Comparator.naturalOrder());
 
     private AttachmentTextExtractor() {
     }
@@ -70,30 +83,82 @@ public final class AttachmentTextExtractor {
     }
 
     private static String hwpx(byte[] bytes) throws IOException {
-        Map<String, String> sections = new TreeMap<>();
+        Map<String, String> sections = new TreeMap<>(HWPX_SECTION_ORDER);
+        int entries = 0;
+        long totalBytes = 0;
         try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(bytes))) {
             ZipEntry entry;
             while ((entry = zip.getNextEntry()) != null) {
-                String name = entry.getName();
-                if (name.startsWith("Contents/section") && name.endsWith(".xml")) {
-                    sections.put(name, new String(zip.readAllBytes(), StandardCharsets.UTF_8));
+                if (++entries > MAX_HWPX_ENTRIES) {
+                    return null;
                 }
+                String name = entry.getName();
+                if (!name.startsWith("Contents/section") || !name.endsWith(".xml")) {
+                    continue;
+                }
+                byte[] xmlBytes = readLimited(zip, MAX_HWPX_ENTRY_BYTES, MAX_HWPX_TOTAL_BYTES - totalBytes);
+                if (xmlBytes == null) {
+                    return null;
+                }
+                totalBytes += xmlBytes.length;
+                sections.put(name, parseHwpxSection(new String(xmlBytes, StandardCharsets.UTF_8)));
             }
         }
         StringBuilder text = new StringBuilder();
-        for (String xml : sections.values()) {
-            Document document = Jsoup.parse(xml, "", Parser.xmlParser());
-            Element lastParagraph = null;
-            for (Element t : document.getElementsByTag("hp:t")) {
-                Element paragraph = t.closest("hp|p");
-                if (paragraph != lastParagraph && !text.isEmpty()) {
+        for (String sectionText : sections.values()) {
+            if (!sectionText.isEmpty()) {
+                if (!text.isEmpty()) {
                     text.append('\n');
                 }
-                lastParagraph = paragraph;
-                text.append(t.wholeText());
+                text.append(sectionText);
             }
-            text.append('\n');
         }
         return text.toString();
+    }
+
+    private static byte[] readLimited(ZipInputStream zip, int maxEntryBytes, long remainingTotalBytes) throws IOException {
+        long limit = Math.min(maxEntryBytes, remainingTotalBytes);
+        if (limit < 0) {
+            return null;
+        }
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        byte[] buffer = new byte[8192];
+        int read;
+        long count = 0;
+        while ((read = zip.read(buffer)) != -1) {
+            count += read;
+            if (count > limit) {
+                return null;
+            }
+            out.write(buffer, 0, read);
+        }
+        return out.toByteArray();
+    }
+
+    private static String parseHwpxSection(String xml) {
+        Document document = Jsoup.parse(xml, "", Parser.xmlParser());
+        StringBuilder text = new StringBuilder();
+        Element lastParagraph = null;
+        for (Element t : document.getElementsByTag("hp:t")) {
+            Element paragraph = t.closest("hp|p");
+            if (paragraph != lastParagraph && !text.isEmpty()) {
+                text.append('\n');
+            }
+            lastParagraph = paragraph;
+            text.append(t.wholeText());
+        }
+        return text.toString();
+    }
+
+    private static int sectionNumber(String name) {
+        Matcher matcher = HWPX_SECTION.matcher(name);
+        if (!matcher.matches()) {
+            return Integer.MAX_VALUE;
+        }
+        try {
+            return Integer.parseInt(matcher.group(1));
+        } catch (NumberFormatException e) {
+            return Integer.MAX_VALUE;
+        }
     }
 }

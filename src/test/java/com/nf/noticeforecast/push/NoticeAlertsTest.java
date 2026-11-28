@@ -115,4 +115,63 @@ class NoticeAlertsTest {
         alerts.sendNewNotice(notice(NOW.minusSeconds(3_600 * 49), null, false, csieOnly));
         verify(dispatcher, org.mockito.Mockito.times(1)).dispatch(eq(match), any(), isNull(), eq(0));
     }
+
+    @Test
+    void 게시_3일_지난_공지도_자격_조건이_바뀌면_마감_전에는_새로_해당한_기기에_새_공지를_보낸다() {
+        PushDispatcher dispatcher = mock(PushDispatcher.class);
+        DeviceRepository devices = mock(DeviceRepository.class);
+        PushSubscriptionRepository subscriptions = mock(PushSubscriptionRepository.class);
+        NoticeSourceRepository sources = mock(NoticeSourceRepository.class);
+        NoticeStatusRepository statuses = mock(NoticeStatusRepository.class);
+        NoticeAlerts alerts = new NoticeAlerts(dispatcher, devices, subscriptions, mock(NoticeRepository.class), sources,
+                statuses, Clock.fixed(NOW, ZoneOffset.UTC));
+
+        Device match = Device.register("AAAA-AAAA", NOW);
+        ReflectionTestUtils.setField(match, "id", "match");
+        match.updateMatchFilter("컴퓨터정보공학부", List.of(), 3, EnrollmentStatus.ENROLLED);
+        PushSubscription subscription = mock(PushSubscription.class);
+        when(subscription.getDeviceId()).thenReturn("match");
+        when(subscriptions.findAll()).thenReturn(List.of(subscription));
+        when(devices.findAllById(List.of("match"))).thenReturn(List.of(match));
+        when(sources.findById(1L)).thenReturn(Optional.of(NoticeSource.of("가톨릭대학교", "https://www.catholic.ac.kr",
+                "/ko/campuslife/notice.do", SourceKind.UNIVERSITY)));
+        when(statuses.findAllByNoticeId(10L)).thenReturn(List.of());
+        when(statuses.findAllByNoticeIdAndStatus(10L, "PLANNED")).thenReturn(List.of());
+        when(dispatcher.dispatch(any(), any(), isNull(), anyInt())).thenReturn(PushDispatcher.Delivery.SENT);
+
+        List<com.nf.noticeforecast.notice.CardDiff.CardChange> condChange = List.of(
+                new com.nf.noticeforecast.notice.CardDiff.CardChange("CONDITIONS", "old", "new"));
+        Notice openOld = notice(NOW.minusSeconds(86_400L * 3), NOW.plusSeconds(86_400L), false, card());
+        alerts.onCardSaved(openOld, condChange);
+        verify(dispatcher, org.mockito.Mockito.times(1)).dispatch(eq(match), any(), isNull(), eq(0));
+
+        Notice closedOld = notice(NOW.minusSeconds(86_400L * 3), NOW.minusSeconds(3_600), false, card());
+        alerts.onCardSaved(closedOld, condChange);
+        verify(dispatcher, org.mockito.Mockito.times(1)).dispatch(eq(match), any(), isNull(), eq(0));
+    }
+
+    @Test
+    void 마감_임박과_준비_시작은_revision과_무관하게_0으로_발송한다() {
+        PushDispatcher dispatcher = mock(PushDispatcher.class);
+        DeviceRepository devices = mock(DeviceRepository.class);
+        NoticeRepository notices = mock(NoticeRepository.class);
+        NoticeStatusRepository statuses = mock(NoticeStatusRepository.class);
+        NoticeAlerts alerts = new NoticeAlerts(dispatcher, devices, mock(PushSubscriptionRepository.class), notices,
+                mock(NoticeSourceRepository.class), statuses, Clock.fixed(NOW, ZoneOffset.UTC));
+
+        Device device = Device.register("AAAA-AAAA", NOW);
+        ReflectionTestUtils.setField(device, "id", "d1");
+        com.nf.noticeforecast.notice.NoticeStatus status = mock(com.nf.noticeforecast.notice.NoticeStatus.class);
+        when(status.getDeviceId()).thenReturn("d1");
+        when(status.getNoticeId()).thenReturn(10L);
+        when(statuses.findAllByStatus("PLANNED")).thenReturn(List.of(status));
+        when(devices.findAllById(any())).thenReturn(List.of(device));
+        when(notices.findAlertRows(any())).thenReturn(List.of(
+                new NoticeAlertRow(10L, "계절학기 수강신청", NOW.plusSeconds(3_600), false, 3, card())));
+
+        alerts.sendDeadlines();
+        alerts.sendPrepStarts();
+
+        verify(dispatcher, org.mockito.Mockito.times(2)).dispatch(eq(device), any(), isNull(), eq(0));
+    }
 }

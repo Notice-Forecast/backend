@@ -31,15 +31,23 @@ public class AttachmentCollector {
     private final SchoolSiteClient client;
     private final PersonalInfoMasker masker = new PersonalInfoMasker();
 
+    public RobotsPolicy newRobotsPolicy() {
+        return new RobotsPolicy(client);
+    }
+
     public List<AttachmentText> collect(String title, List<NoticeAttachment> attachments) {
+        return collect(title, attachments, newRobotsPolicy());
+    }
+
+    public List<AttachmentText> collect(String title, List<NoticeAttachment> attachments, RobotsPolicy robots) {
         if (attachments == null || attachments.isEmpty()) {
             return List.of();
         }
         boolean rosterNotice = masker.isRosterTitle(title);
-        RobotsPolicy robots = new RobotsPolicy(client);
         List<AttachmentText> texts = new ArrayList<>();
         for (NoticeAttachment attachment : attachments) {
-            if (rosterNotice || ROSTER_FILE_WORDS.stream().anyMatch(attachment.name()::contains)) {
+            String name = attachment.name() == null ? "" : attachment.name();
+            if (rosterNotice || ROSTER_FILE_WORDS.stream().anyMatch(name::contains)) {
                 texts.add(AttachmentText.of(attachment.name(), Status.SKIPPED_ROSTER));
                 continue;
             }
