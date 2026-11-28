@@ -50,4 +50,12 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
     @Modifying
     @Query("update Notice n set n.seriesId = :seriesId where n.id = :noticeId")
     void assignSeries(Long noticeId, Long seriesId);
+
+    @Query("""
+            select new com.nf.noticeforecast.notice.NoticeAlertRow(n.id, n.title, n.deadlineAt, n.deadlineAllDay,
+                n.revision, n.card)
+            from Notice n
+            where n.id in :ids
+            """)
+    List<NoticeAlertRow> findAlertRows(java.util.Collection<Long> ids);
 }

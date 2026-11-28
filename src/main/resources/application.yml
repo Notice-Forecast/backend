@@ -3,6 +3,12 @@ server:
   forward-headers-strategy: framework
 
 spring:
+  # 정기 작업 스레드 2개. 매시간 수집·추출이 몇 분 걸리는 동안 10분 주기 마감 임박 알림이 밀리지 않게 한다.
+  # 수집 작업끼리는 NoticeCrawler가 synchronized라 겹치지 않고, 학교 서버 1초 간격은 전역으로 지킨다.
+  task:
+    scheduling:
+      pool:
+        size: 2
   application:
     name: notice-forecast-backend
   config:
