@@ -11,6 +11,7 @@ import com.nf.noticeforecast.notice.Notice;
 import com.nf.noticeforecast.notice.NoticeChange;
 import com.nf.noticeforecast.notice.NoticeChangeRepository;
 import com.nf.noticeforecast.notice.NoticeRepository;
+import com.nf.noticeforecast.push.NoticeAlerts;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -30,6 +31,7 @@ public class ExtractionService {
 
     private final NoticeRepository noticeRepository;
     private final NoticeChangeRepository noticeChangeRepository;
+    private final NoticeAlerts noticeAlerts;
     private final CardExtractor extractor;
     private final AttachmentCollector attachmentCollector;
     private final LlmProperties llmProperties;
@@ -106,6 +108,7 @@ public class ExtractionService {
                     log.info("notice {} changed (revision {}): {}", notice.getArticleNo(), notice.getRevision(),
                             notice.getChangeSummary());
                 }
+                noticeAlerts.onCardSaved(notice, changes);
             }
             case CardExtractor.Rejected r -> {
                 log.info("notice {} needs original: {}", notice.getArticleNo(), r.errors());
