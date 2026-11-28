@@ -186,7 +186,7 @@ public class NoticeAlerts {
     }
 
     /** 본교 공지는 모두, 학과 공지는 주전공·추가 전공이 그 학과인 기기만(CLAUDE.md 9.3). */
-    static boolean seesSource(Device device, NoticeSource source) {
+    public static boolean seesSource(Device device, NoticeSource source) {
         if (source == null || source.getKind() == SourceKind.UNIVERSITY) {
             return true;
         }

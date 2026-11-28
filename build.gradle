@@ -49,6 +49,14 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+// 정확도 실측(POST /internal/metrics/run)이 배포 서버에서 정답셋을 읽도록 jar에 함께 싣는다(CLAUDE.md 15.2).
+tasks.named('processResources') {
+    from('src/test/resources/eval') {
+        include '**/*.json'
+        into 'eval'
+    }
+}
+
 tasks.named('test') {
     useJUnitPlatform()
 }
