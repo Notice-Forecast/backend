@@ -87,6 +87,10 @@ public class Notice {
 
     private Instant extractedAt;
 
+    /** 마지막 변경의 요약 문구(서버 규칙, 11/28 결정). 바뀐 적이 없으면 null */
+    @Column(length = 500)
+    private String changeSummary;
+
     @Column(nullable = false)
     private int revision;
 
@@ -144,16 +148,28 @@ public class Notice {
         this.updatedAt = now;
     }
 
-    /** 변경 감지(notice_change)는 다음 작업에서 붙인다. 지금은 카드가 바뀔 때마다 revision을 올린다. */
-    public void applyCard(Card card, Instant deadlineAt, boolean deadlineAllDay, Instant now) {
+    /**
+     * 새 카드를 저장한다(CLAUDE.md 8.4). 이전 카드가 없으면(첫 카드) revision을 올리고, 있으면 바뀐 항목이 있을 때만 올린다.
+     * 바뀐 항목이 있으면 변경 요약도 새로 쓴다. 바뀐 항목 기록(notice_change)은 호출한 쪽이 이 revision으로 남긴다.
+     *
+     * @return 바뀐 항목. 이전 카드가 없으면 빈 목록
+     */
+    public List<CardDiff.CardChange> applyCard(Card card, Instant deadlineAt, boolean deadlineAllDay, Instant now) {
+        List<CardDiff.CardChange> changes = CardDiff.diff(this.card, card);
+        if (this.card == null || !changes.isEmpty()) {
+            this.revision++;
+        }
+        if (!changes.isEmpty()) {
+            this.changeSummary = ChangeSummaries.of(changes);
+        }
         this.card = card;
         this.deadlineAt = deadlineAt;
         this.deadlineAllDay = deadlineAt != null && deadlineAllDay;
         this.extractionStatus = ExtractionStatus.DONE.name();
         this.extractionReason = null;
-        this.revision++;
         this.extractedAt = now;
         this.updatedAt = now;
+        return changes;
     }
 
     /** 카드는 null로 두고, 제목에서 읽은 마감(deadline_at)은 그대로 둔다(CLAUDE.md 8.1). */
