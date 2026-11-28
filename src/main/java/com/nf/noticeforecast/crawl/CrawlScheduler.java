@@ -1,6 +1,7 @@
 package com.nf.noticeforecast.crawl;
 
 import com.nf.noticeforecast.extract.ExtractionService;
+import com.nf.noticeforecast.forecast.SeriesLinker;
 import com.nf.noticeforecast.notice.SourceKind;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -18,11 +19,14 @@ public class CrawlScheduler {
 
     private final NoticeCrawler crawler;
     private final ExtractionService extractionService;
+    private final SeriesLinker seriesLinker;
 
     @Scheduled(initialDelayString = "PT1M", fixedDelayString = "PT1H")
     public void crawlNewNotices() {
         crawler.crawlNew();
         extractionService.extractPending();
+        // 처음에는 과거 이력까지 수백 번 호출해 오래 걸린다. 정기 작업 스레드를 막지 않도록 백그라운드로 시작만 한다.
+        seriesLinker.startInBackground();
     }
 
     @Scheduled(initialDelayString = "PT6H", fixedDelayString = "PT6H")
