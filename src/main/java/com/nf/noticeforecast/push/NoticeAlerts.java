@@ -67,15 +67,21 @@ public class NoticeAlerts {
             if (!changes.isEmpty()) {
                 sendChanged(notice);
             }
-            sendNewNotice(notice);
+            boolean conditionsChanged = changes.stream().anyMatch(c -> CardDiff.CONDITIONS.equals(c.field()));
+            sendNewNotice(notice, conditionsChanged);
         } catch (RuntimeException e) {
             log.warn("alerts failed for notice {}: {}", notice.getId(), e.toString());
         }
     }
 
     void sendNewNotice(Notice notice) {
+        sendNewNotice(notice, false);
+    }
+
+    void sendNewNotice(Notice notice, boolean skipAgeWindow) {
         Instant now = clock.instant();
-        if (notice.getCard() == null || notice.getPostedAt().isBefore(now.minus(NEW_NOTICE_WINDOW))
+        if (notice.getCard() == null
+                || (!skipAgeWindow && notice.getPostedAt().isBefore(now.minus(NEW_NOTICE_WINDOW)))
                 || deadlinePassed(notice, now)) {
             return;
         }
@@ -115,7 +121,7 @@ public class NoticeAlerts {
             String deadline = deadlineText(notice);
             String body = deadline == null ? notice.title() : notice.title() + " · 마감 " + deadline;
             PushPayload payload = PushPayload.forNotice(PushType.PREP_START, "오늘부터 준비하세요", body, notice.id());
-            entry.getValue().forEach(device -> dispatcher.dispatch(device, payload, null, notice.revision()));
+            entry.getValue().forEach(device -> dispatcher.dispatch(device, payload, null, 0));
         }
     }
 
@@ -128,7 +134,7 @@ public class NoticeAlerts {
             }
             PushPayload payload = PushPayload.forNotice(PushType.DEADLINE, deadlineTitle(notice, now),
                     "신청 예정으로 둔 공지예요.", notice.id());
-            entry.getValue().forEach(device -> dispatcher.dispatch(device, payload, null, notice.revision()));
+            entry.getValue().forEach(device -> dispatcher.dispatch(device, payload, null, 0));
         }
     }
 

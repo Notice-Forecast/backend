@@ -21,6 +21,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.springframework.transaction.support.TransactionTemplate;
 
 class SeriesLinkerTest {
 
@@ -37,10 +40,16 @@ class SeriesLinkerTest {
         return new NoticeTitleRow(id, seriesId, title, department, null, T.plusSeconds(86_400L * daysAfter));
     }
 
+    private static TransactionTemplate txTemplate() {
+        PlatformTransactionManager txManager = mock(PlatformTransactionManager.class);
+        when(txManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
+        return new TransactionTemplate(txManager);
+    }
+
     @BeforeEach
     void setUp() {
         linker = new SeriesLinker(notices, seriesRepository, judgments, judge,
-                new LlmProperties("key", null, null, null), Clock.fixed(T, ZoneOffset.UTC));
+                new LlmProperties("key", null, null, null), Clock.fixed(T, ZoneOffset.UTC), txTemplate());
         when(seriesRepository.save(any())).thenAnswer(invocation -> {
             ForecastSeries series = invocation.getArgument(0);
             ReflectionTestUtils.setField(series, "id", nextSeriesId.getAndIncrement());
@@ -127,9 +136,27 @@ class SeriesLinkerTest {
     @Test
     void LLM_키가_없으면_돌지_않는다() {
         SeriesLinker noKey = new SeriesLinker(notices, seriesRepository, judgments, judge,
-                new LlmProperties("", null, null, null), Clock.systemUTC());
+                new LlmProperties("", null, null, null), Clock.systemUTC(), txTemplate());
 
         assertThat(noKey.linkPending().ran()).isFalse();
         verify(notices, never()).findAllTitles();
+    }
+
+    @Test
+    void DB_저장_오류는_응답_실패로_기록하지_않고_해당_공지만_건너뛴다() {
+        when(notices.findAllTitles()).thenReturn(List.of(
+                row(1, 7L, "25-1학기 장학조교 모집", "학생지원팀", 0),
+                row(2, null, "25-2학기 장학조교 모집", "학생지원팀", 180),
+                row(3, null, "학생 상담 프로그램 안내", "학생지원팀", 190)));
+        when(judge.judge(any(), anyList())).thenReturn(new SeriesJudge.Result(
+                List.of(new SeriesJudge.Verdict(1, true, "같은 공지")), "claude-haiku-5-5"));
+        when(judgments.saveAll(anyList())).thenThrow(new RuntimeException("db error"));
+
+        SeriesLinker.LinkReport report = linker.linkPending();
+
+        assertThat(report.failed()).isEqualTo(0);
+        assertThat(report.created()).isEqualTo(1);
+        verify(notices, never()).assignSeries(eq(2L), any());
+        verify(notices).assignSeries(3L, 100L);
     }
 }

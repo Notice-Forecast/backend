@@ -71,12 +71,38 @@ class AttachmentTextExtractorTest {
         }
     }
 
+    @Test
+    void sortsHwpxSectionsNumerically() throws Exception {
+        String s2 = "<hs:sec xmlns:hs=\"h\" xmlns:hp=\"p\"><hp:p><hp:t>둘째</hp:t></hp:p></hs:sec>";
+        String s10 = "<hs:sec xmlns:hs=\"h\" xmlns:hp=\"p\"><hp:p><hp:t>열째</hp:t></hp:p></hs:sec>";
+        byte[] bytes = zipEntries(java.util.Map.of(
+                "Contents/section10.xml", s10,
+                "Contents/section2.xml", s2));
+
+        assertThat(AttachmentTextExtractor.extract(Format.HWPX, bytes)).hasValue("둘째\n열째");
+    }
+
+    @Test
+    void rejectsHwpxExceedingUncompressedLimit() throws Exception {
+        String huge = "<hs:sec xmlns:hs=\"h\" xmlns:hp=\"p\"><hp:p><hp:t>"
+                + "a".repeat(AttachmentTextExtractor.MAX_HWPX_ENTRY_BYTES + 1024)
+                + "</hp:t></hp:p></hs:sec>";
+
+        assertThat(AttachmentTextExtractor.extract(Format.HWPX, zip("Contents/section0.xml", huge))).isEmpty();
+    }
+
     private static byte[] zip(String entry, String content) throws Exception {
+        return zipEntries(java.util.Map.of(entry, content));
+    }
+
+    private static byte[] zipEntries(java.util.Map<String, String> entries) throws Exception {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try (ZipOutputStream zip = new ZipOutputStream(out)) {
-            zip.putNextEntry(new ZipEntry(entry));
-            zip.write(content.getBytes(StandardCharsets.UTF_8));
-            zip.closeEntry();
+            for (var e : entries.entrySet()) {
+                zip.putNextEntry(new ZipEntry(e.getKey()));
+                zip.write(e.getValue().getBytes(StandardCharsets.UTF_8));
+                zip.closeEntry();
+            }
         }
         return out.toByteArray();
     }

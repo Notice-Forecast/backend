@@ -25,17 +25,17 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
     List<Notice> findStillActive(Instant now, Instant todayStart);
 
     /**
-     * AI 추출 후보: 아직 추출하지 않은 최근 글(CLAUDE.md 8.1). 본문 해시가 없는 글은 상세를 받지 않은 과거 이력이라 뺀다.
-     * 본문도 첨부도 없는 글은 서비스에서 거른다.
+     * AI 추출 후보 ID: 아직 추출하지 않은 최근 글(CLAUDE.md 8.1). 본문 해시가 없는 글은 상세를 받지 않은 과거 이력이라 뺀다.
+     * 본문 전체를 한 번에 메모리에 올리지 않고 ID만 먼저 읽는다.
      */
     @Query("""
-            select n from Notice n
+            select n.id from Notice n
             where n.extractionStatus = 'PENDING'
               and n.bodyHash is not null
               and n.postedAt >= :since
             order by n.postedAt desc
             """)
-    List<Notice> findExtractionCandidates(Instant since);
+    List<Long> findExtractionCandidateIds(Instant since);
 
     /** 계열 판별용. 본문 없이 제목·부서·게시일만 읽는다. 과거 이력도 포함한다. */
     @Query("""
@@ -60,6 +60,17 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
             having count(n) >= :minRounds
             """)
     List<Object[]> countRoundsBySeries(long minRounds);
+
+    record SeriesStats(long rounds, Instant firstPostedAt, Instant lastPostedAt) {
+    }
+
+    @Query("""
+            select new com.nf.noticeforecast.notice.NoticeRepository$SeriesStats(
+                count(n), min(n.postedAt), max(n.postedAt))
+            from Notice n
+            where n.seriesId = :seriesId
+            """)
+    SeriesStats summarizeSeries(Long seriesId);
 
     @Query("""
             select new com.nf.noticeforecast.notice.NoticeTitleRow(n.id, n.seriesId, n.title, n.department, n.category,

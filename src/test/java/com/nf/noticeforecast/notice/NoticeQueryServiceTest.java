@@ -2,11 +2,23 @@ package com.nf.noticeforecast.notice;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.nf.noticeforecast.device.Device;
 import com.nf.noticeforecast.device.EnrollmentStatus;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Path;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -82,5 +94,36 @@ class NoticeQueryServiceTest {
         assertThat(NoticeQueryService.parseUpdatedSince(null)).isNull();
         assertThatThrownBy(() -> NoticeQueryService.parseUpdatedSince("어제"))
                 .isInstanceOf(com.nf.noticeforecast.global.error.InvalidFieldException.class);
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void 목록_조건은_명단성_공지를_포함하고_과거_이력만_뺀다() {
+        NoticeQueryService service = new NoticeQueryService(mock(NoticeRepository.class),
+                mock(NoticeSourceRepository.class), mock(NoticeStatusRepository.class),
+                mock(NoticeChangeRepository.class), mock(EntityManager.class), Clock.systemUTC());
+        Root<Notice> root = mock(Root.class);
+        Path bodyHashPath = mock(Path.class);
+        Path statusPath = mock(Path.class);
+        Path sourceIdPath = mock(Path.class);
+        when(root.get("bodyHash")).thenReturn(bodyHashPath);
+        when(root.get("extractionStatus")).thenReturn(statusPath);
+        when(root.get("sourceId")).thenReturn(sourceIdPath);
+        CriteriaBuilder cb = mock(CriteriaBuilder.class);
+        Predicate bodyNotNull = mock(Predicate.class);
+        Predicate notPending = mock(Predicate.class);
+        when(cb.isNotNull(bodyHashPath)).thenReturn(bodyNotNull);
+        when(cb.notEqual(statusPath, ExtractionStatus.PENDING.name())).thenReturn(notPending);
+        when(cb.or(bodyNotNull, notPending)).thenReturn(mock(Predicate.class));
+        when(sourceIdPath.in(Set.of(1L))).thenReturn(mock(Predicate.class));
+        when(cb.and(any(Predicate[].class))).thenReturn(mock(Predicate.class));
+
+        NoticeQueryService.ListQuery query = new NoticeQueryService.ListQuery(null, false, null, null, false, null, 20);
+        service.spec(query, null, Set.of(1L), null, Instant.parse("2026-11-28T00:00:00Z"))
+                .toPredicate(root, mock(CriteriaQuery.class), cb);
+
+        verify(cb).isNotNull(bodyHashPath);
+        verify(cb).notEqual(statusPath, ExtractionStatus.PENDING.name());
+        verify(cb).or(bodyNotNull, notPending);
     }
 }

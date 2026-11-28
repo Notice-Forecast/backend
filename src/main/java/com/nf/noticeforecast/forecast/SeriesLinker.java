@@ -5,6 +5,7 @@ import com.nf.noticeforecast.extract.LlmRejectedException;
 import com.nf.noticeforecast.extract.LlmUnavailableException;
 import com.nf.noticeforecast.notice.NoticeRepository;
 import com.nf.noticeforecast.notice.NoticeTitleRow;
+import jakarta.annotation.PreDestroy;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -19,6 +20,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * 계열이 없는 공지를 오래된 글부터 계열에 붙인다(CLAUDE.md 8.4, 11/28 결정).
@@ -44,6 +46,7 @@ public class SeriesLinker {
     private final SeriesJudge judge;
     private final LlmProperties llmProperties;
     private final Clock clock;
+    private final TransactionTemplate transactionTemplate;
     private final ReentrantLock lock = new ReentrantLock();
     private final ExecutorService background = Executors.newSingleThreadExecutor(r -> {
         Thread thread = new Thread(r, "series-linker");
@@ -65,17 +68,39 @@ public class SeriesLinker {
     record Candidate(Entry entry, double similarity) {
     }
 
+    private record JudgeOutcome(Long matchedSeriesId, List<SeriesJudgment> records) {
+    }
+
     /** @return 새로 시작했으면 true, 이미 돌고 있으면 false */
     public boolean startInBackground() {
         if (lock.isLocked()) {
             return false;
         }
-        background.submit(this::linkPending);
+        background.submit(() -> {
+            try {
+                linkPending();
+            } catch (Throwable t) {
+                log.error("series linking background task failed", t);
+            }
+        });
         return true;
     }
 
     public boolean running() {
         return lock.isLocked();
+    }
+
+    boolean tryLock() {
+        return lock.tryLock();
+    }
+
+    void unlock() {
+        lock.unlock();
+    }
+
+    @PreDestroy
+    void shutdown() {
+        background.shutdownNow();
     }
 
     public LinkReport linkPending() {
@@ -94,12 +119,14 @@ public class SeriesLinker {
     }
 
     private LinkReport run() {
+        List<NoticeTitleRow> all = noticeRepository.findAllTitles();
+        List<NoticeTitleRow> pending = all.stream().filter(row -> row.seriesId() == null).toList();
+        if (pending.isEmpty()) {
+            return new LinkReport(true, 0, 0, 0, 0, 0, null);
+        }
         List<Entry> index = new ArrayList<>();
-        List<NoticeTitleRow> pending = new ArrayList<>();
-        for (NoticeTitleRow row : noticeRepository.findAllTitles()) {
-            if (row.seriesId() == null) {
-                pending.add(row);
-            } else {
+        for (NoticeTitleRow row : all) {
+            if (row.seriesId() != null) {
                 index.add(entry(row, row.seriesId()));
             }
         }
@@ -108,37 +135,50 @@ public class SeriesLinker {
         int calls = 0;
         int failed = 0;
         String stoppedBy = null;
-        if (!pending.isEmpty()) {
-            log.info("series linking started: pending={}, alreadyLinked={}", pending.size(), index.size());
-        }
+        log.info("series linking started: pending={}, alreadyLinked={}", pending.size(), index.size());
         int processed = 0;
         for (NoticeTitleRow row : pending) {
             List<Candidate> candidates = candidates(row, index);
-            Long seriesId = null;
+            JudgeOutcome judged = new JudgeOutcome(null, List.of());
             if (!candidates.isEmpty()) {
                 try {
                     calls++;
-                    seriesId = judgeAndRecord(row, candidates);
+                    judged = judgeCandidates(row, candidates);
                 } catch (LlmUnavailableException | LlmRejectedException e) {
                     stoppedBy = e.getMessage();
                     log.warn("series linking stopped at notice {}: {}", row.id(), e.getMessage());
                     break;
-                } catch (RuntimeException e) {
+                } catch (IllegalStateException e) {
                     // 응답을 읽지 못한 공지를 남겨 두면 매번 같은 호출을 다시 하므로, 모두 다르다고 본 것처럼 새 계열을 만든다.
                     failed++;
                     log.warn("series judgment unreadable for notice {}, starting a new series: {}", row.id(), e.toString());
-                    recordUnreadable(row, candidates, e);
+                    judged = new JudgeOutcome(null, unreadableRecords(row, candidates, e));
                 }
             }
-            if (seriesId == null) {
-                seriesId = seriesRepository.save(ForecastSeries.startFrom(SeriesTitles.normalize(row.title()),
-                        row.title(), row.department(), row.category(), clock.instant())).getId();
+            Long matchedSeriesId = judged.matchedSeriesId();
+            List<SeriesJudgment> records = judged.records();
+            Long assignedSeriesId;
+            try {
+                assignedSeriesId = transactionTemplate.execute(status -> {
+                    if (!records.isEmpty()) {
+                        judgmentRepository.saveAll(records);
+                    }
+                    Long targetId = matchedSeriesId != null ? matchedSeriesId
+                            : seriesRepository.save(ForecastSeries.startFrom(SeriesTitles.normalize(row.title()),
+                                    row.title(), row.department(), row.category(), clock.instant())).getId();
+                    noticeRepository.assignSeries(row.id(), targetId);
+                    return targetId;
+                });
+            } catch (RuntimeException e) {
+                log.warn("series persistence failed for notice {}, skipping: {}", row.id(), e.toString());
+                continue;
+            }
+            if (matchedSeriesId == null) {
                 created++;
             } else {
                 joined++;
             }
-            noticeRepository.assignSeries(row.id(), seriesId);
-            index.add(entry(row, seriesId));
+            index.add(entry(row, assignedSeriesId));
             processed++;
             if (processed % PROGRESS_EVERY == 0) {
                 log.info("series linking progress: {}/{} (created={}, joined={}, llmCalls={}, failed={})",
@@ -146,14 +186,11 @@ public class SeriesLinker {
             }
         }
         LinkReport report = new LinkReport(true, created + joined, created, joined, calls, failed, stoppedBy);
-        if (!pending.isEmpty()) {
-            log.info("series linking finished: {}", report);
-        }
+        log.info("series linking finished: {}", report);
         return report;
     }
 
-    /** @return 같다고 판별된 계열. 모두 다르면 null */
-    private Long judgeAndRecord(NoticeTitleRow row, List<Candidate> candidates) {
+    private JudgeOutcome judgeCandidates(NoticeTitleRow row, List<Candidate> candidates) {
         SeriesJudge.Result result = judge.judge(row, candidates.stream().map(c -> c.entry().row()).toList());
         Map<Integer, SeriesJudge.Verdict> byCandidate = new HashMap<>();
         result.verdicts().forEach(v -> byCandidate.putIfAbsent(v.candidate(), v));
@@ -171,17 +208,16 @@ public class SeriesLinker {
                 matched = candidate.entry().seriesId();
             }
         }
-        judgmentRepository.saveAll(records);
-        return matched;
+        return new JudgeOutcome(matched, records);
     }
 
-    private void recordUnreadable(NoticeTitleRow row, List<Candidate> candidates, RuntimeException e) {
+    private List<SeriesJudgment> unreadableRecords(NoticeTitleRow row, List<Candidate> candidates, RuntimeException e) {
         Instant now = clock.instant();
         String reason = "LLM 응답을 읽지 못해 새 계열로 처리했습니다: " + e.getMessage();
-        judgmentRepository.saveAll(candidates.stream()
+        return candidates.stream()
                 .map(c -> SeriesJudgment.of(row.id(), c.entry().row().id(), c.entry().seriesId(), c.similarity(),
                         false, reason, null, now))
-                .toList());
+                .toList();
     }
 
     static Entry entry(NoticeTitleRow row, long seriesId) {

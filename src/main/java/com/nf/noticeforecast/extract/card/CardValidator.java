@@ -146,6 +146,8 @@ public final class CardValidator {
         }
         if (!CardEnums.AI_SCHEDULE_SOURCES.contains(item.source())) {
             errors.add(path + ".source는 NOTICE 또는 AI_SUGGESTED여야 합니다.");
+        } else if (!"PREP_START".equals(item.type()) && "AI_SUGGESTED".equals(item.source())) {
+            errors.add(path + ".source: " + item.type() + "는 원문에 적힌 날짜(NOTICE)여야 합니다.");
         }
         if (blank(item.label())) {
             errors.add(path + ".label이 비어 있습니다.");
@@ -171,8 +173,8 @@ public final class CardValidator {
 
     private static boolean number(String value) {
         try {
-            Double.parseDouble(value);
-            return true;
+            double parsed = Double.parseDouble(value);
+            return Double.isFinite(parsed) && parsed >= 0;
         } catch (NumberFormatException | NullPointerException e) {
             return false;
         }

@@ -60,4 +60,24 @@ class WebPushCryptoTest {
         assertThat(request.timeout()).contains(java.time.Duration.ofSeconds(10));
         assertThat(request.bodyPublisher()).hasValueSatisfying(body -> assertThat(body.contentLength()).isGreaterThan(0));
     }
+
+    @Test
+    void 잘못된_구독_키는_GONE으로_돌려준다() throws Exception {
+        if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
+            Security.addProvider(new BouncyCastleProvider());
+        }
+        KeyPair vapid = p256();
+        WebPushSender sender = new WebPushSender(new VapidProperties(
+                publicKey(vapid), privateKey(vapid), "https://github.com/Notice-Forecast"));
+        com.nf.noticeforecast.device.PushSubscription bad = org.mockito.Mockito.mock(
+                com.nf.noticeforecast.device.PushSubscription.class);
+        org.mockito.Mockito.when(bad.getDeviceId()).thenReturn("d1");
+        org.mockito.Mockito.when(bad.getEndpoint()).thenReturn("https://fcm.googleapis.com/fcm/send/abc");
+        org.mockito.Mockito.when(bad.getP256dh()).thenReturn("not-a-valid-key");
+        org.mockito.Mockito.when(bad.getAuth()).thenReturn("short");
+
+        PushSender.Result result = sender.send(bad, "{\"type\":\"DEADLINE\"}");
+
+        assertThat(result.outcome()).isEqualTo(PushSender.Outcome.GONE);
+    }
 }

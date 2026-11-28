@@ -1,7 +1,10 @@
 package com.nf.noticeforecast.crawl;
 
+import java.time.DateTimeException;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -16,7 +19,7 @@ public class PersonalInfoMasker {
     private static final Pattern EMAIL = Pattern.compile("[\\w.+-]+@[\\w-]+(\\.[\\w-]+)+");
     private static final Pattern RESIDENT_NUMBER = Pattern.compile("(?<!\\d)\\d{6}\\s*-?\\s*[1-8]\\d{6}(?!\\d)");
     private static final Pattern MOBILE_WITHOUT_SEPARATOR = Pattern.compile("(?<!\\d)01[016789]\\d{8}(?!\\d)");
-    private static final Pattern PHONE = Pattern.compile("(?<!\\d)0\\d{1,2}[-.)\\s]\\d{3,4}[-.\\s]\\d{4}(?!\\d)");
+    private static final Pattern PHONE = Pattern.compile("(?<!\\d)\\(?0\\d{1,2}[-.)\\s]+\\d{3,4}[-.\\s]\\d{4}(?!\\d)");
     private static final Pattern STUDENT_NUMBER = Pattern.compile("(?<!\\d)\\d{8,10}(?!\\d)");
     private static final Pattern TOKEN_SEPARATOR = Pattern.compile("[,·/\\s]+");
     private static final Pattern THREE_HANGUL = Pattern.compile("[가-힣]{3}");
@@ -42,7 +45,22 @@ public class PersonalInfoMasker {
         masked = RESIDENT_NUMBER.matcher(masked).replaceAll(HIDDEN);
         masked = MOBILE_WITHOUT_SEPARATOR.matcher(masked).replaceAll(HIDDEN);
         masked = PHONE.matcher(masked).replaceAll(HIDDEN);
-        return STUDENT_NUMBER.matcher(masked).replaceAll(HIDDEN);
+        return STUDENT_NUMBER.matcher(masked)
+                .replaceAll(m -> isDate8(m.group()) ? Matcher.quoteReplacement(m.group()) : Matcher.quoteReplacement(HIDDEN));
+    }
+
+    private static boolean isDate8(String digits) {
+        if (digits.length() != 8 || !(digits.startsWith("19") || digits.startsWith("20"))) {
+            return false;
+        }
+        try {
+            LocalDate.of(Integer.parseInt(digits.substring(0, 4)),
+                    Integer.parseInt(digits.substring(4, 6)),
+                    Integer.parseInt(digits.substring(6, 8)));
+            return true;
+        } catch (DateTimeException e) {
+            return false;
+        }
     }
 
     boolean looksLikeNameList(String line) {

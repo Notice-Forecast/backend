@@ -17,6 +17,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /**
  * 시드 계열을 고르기 위한 내부 관리(CLAUDE.md 8.4, 11/28 결정). 회차 많은 계열을 보고, 잘못 나뉜 계열을 합치고,
@@ -29,6 +30,8 @@ public class SeriesAdminService {
     private final ForecastSeriesRepository seriesRepository;
     private final NoticeRepository noticeRepository;
     private final TermCalendarRepository termCalendarRepository;
+    private final SeriesLinker seriesLinker;
+    private final TransactionTemplate transactionTemplate;
 
     public record SeriesSummary(Long id, String name, String department, boolean seed, SeriesAnchor anchor,
                                 long rounds, LocalDate firstPosted, LocalDate lastPosted) {
@@ -70,23 +73,35 @@ public class SeriesAdminService {
     }
 
     /** from 계열의 공지를 모두 into 계열로 옮기고 from 계열을 지운다. 판별 기록은 그대로 둔다. */
-    @Transactional
     public int merge(Long intoId, Long fromId) {
         if (intoId.equals(fromId)) {
             throw new InvalidFieldException("from", "같은 계열끼리는 합칠 수 없습니다.");
         }
-        find(intoId);
-        ForecastSeries from = find(fromId);
-        int moved = noticeRepository.moveSeries(fromId, intoId);
-        seriesRepository.delete(from);
-        return moved;
+        if (!seriesLinker.tryLock()) {
+            throw new BusinessException(ErrorCode.SERIES_LINKING_IN_PROGRESS);
+        }
+        try {
+            Integer moved = transactionTemplate.execute(status -> {
+                find(intoId);
+                ForecastSeries from = find(fromId);
+                int count = noticeRepository.moveSeries(fromId, intoId);
+                seriesRepository.delete(from);
+                return count;
+            });
+            return moved == null ? 0 : moved;
+        } finally {
+            seriesLinker.unlock();
+        }
     }
 
     @Transactional
     public SeriesSummary curate(Long id, String name, SeriesAnchor anchor, boolean seed) {
         ForecastSeries series = find(id);
         series.curate(name, anchor, seed);
-        return detail(id).series();
+        NoticeRepository.SeriesStats stats = noticeRepository.summarizeSeries(id);
+        return summary(series, stats == null ? 0 : stats.rounds(),
+                stats == null ? null : stats.firstPostedAt(),
+                stats == null ? null : stats.lastPostedAt());
     }
 
     static Round round(NoticeTitleRow row, List<TermCalendar> terms) {

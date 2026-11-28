@@ -3,6 +3,7 @@ package com.nf.noticeforecast.extract;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -51,15 +53,31 @@ public class AnthropicLlmClient implements LlmClient {
                     .body(String.class);
         } catch (RestClientResponseException e) {
             int status = e.getStatusCode().value();
-            String message = "LLM returned " + status + ": " + e.getResponseBodyAsString();
+            String body = e.getResponseBodyAsString();
+            String message = "LLM returned " + status + ": " + body;
             if (status == 429 || status >= 500) {
                 throw new LlmUnavailableException(message, e);
             }
-            throw new LlmRejectedException(message, e);
+            throw new LlmRejectedException(message, e, status, isInputTooLong(status, body));
         } catch (ResourceAccessException e) {
             throw new LlmUnavailableException("LLM unreachable: " + e.getMessage(), e);
         }
         return parse(response);
+    }
+
+    static boolean isInputTooLong(int status, String body) {
+        if (status == 413) {
+            return true;
+        }
+        if (status != 400 || body == null) {
+            return false;
+        }
+        String lower = body.toLowerCase(Locale.ROOT);
+        return lower.contains("prompt is too long")
+                || lower.contains("input is too long")
+                || lower.contains("too many tokens")
+                || lower.contains("context length")
+                || lower.contains("maximum context");
     }
 
     Map<String, Object> requestBody(LlmRequest request) {
@@ -75,7 +93,15 @@ public class AnthropicLlmClient implements LlmClient {
     }
 
     LlmResult parse(String response) {
-        JsonNode root = jsonMapper.readTree(response);
+        if (response == null || response.isBlank()) {
+            throw new LlmUnavailableException("LLM returned empty response", null);
+        }
+        JsonNode root;
+        try {
+            root = jsonMapper.readTree(response);
+        } catch (JacksonException e) {
+            throw new LlmUnavailableException("LLM response unreadable: " + e.getOriginalMessage(), e);
+        }
         StringBuilder text = new StringBuilder();
         for (JsonNode block : root.path("content")) {
             if ("text".equals(block.path("type").asString())) {

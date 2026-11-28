@@ -51,6 +51,9 @@ public class PrepSchedule {
 
     private Optional<ScheduleItem> decide(List<CardDocument> documents, Optional<ScheduleItem> suggested,
                                           LocalDate deadline, LocalDate postedDate) {
+        if (postedDate.isAfter(deadline)) {
+            return Optional.empty();
+        }
         if (documents.isEmpty()) {
             return Optional.of(prepItem(clamp(deadline.minusDays(properties.noDocumentDays()), postedDate, deadline),
                     RULE, null));

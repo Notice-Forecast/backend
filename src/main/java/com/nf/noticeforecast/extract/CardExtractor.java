@@ -5,6 +5,7 @@ import com.nf.noticeforecast.extract.card.CardSchema;
 import com.nf.noticeforecast.extract.card.CardValidator;
 import com.nf.noticeforecast.extract.card.ScheduleItem;
 import com.nf.noticeforecast.global.time.KoreanTime;
+import com.nf.noticeforecast.notice.ExtractionReason;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -46,10 +47,19 @@ public class CardExtractor {
     public record Deadline(Instant at, boolean allDay) {
     }
 
-    public record Rejected(List<String> errors, int attempts) implements Outcome {
+    public record Rejected(List<String> errors, int attempts, ExtractionReason reason) implements Outcome {
+
+        public Rejected(List<String> errors, int attempts) {
+            this(errors, attempts, ExtractionReason.VALIDATION_FAILED);
+        }
     }
 
-    public record RetryLater(String message) implements Outcome {
+    /** @param noticeRejected 이 공지 요청만 400으로 거절됐다. 다른 공지는 계속 처리할 수 있다 */
+    public record RetryLater(String message, boolean noticeRejected) implements Outcome {
+
+        public RetryLater(String message) {
+            this(message, false);
+        }
     }
 
     public Outcome extract(Input input, LocalDate today) {
@@ -66,9 +76,14 @@ public class CardExtractor {
                 log.warn("llm unavailable: {}", e.getMessage());
                 return new RetryLater(e.getMessage());
             } catch (LlmRejectedException e) {
-                // 400은 대개 우리 요청(스키마·키) 문제라 공지 상태를 바꾸지 않는다.
+                if (e.isInputTooLong()) {
+                    log.warn("llm input too long: {}", e.getMessage());
+                    return new Rejected(List.of("공지가 너무 길어 AI가 읽지 못했습니다."), attempt,
+                            ExtractionReason.ATTACHMENT_UNREADABLE);
+                }
+                // 그 밖의 400·401·403은 공지 상태를 바꾸지 않는다. 401·403은 배치를 멈추고, 400은 이 공지만 건너뛴다.
                 log.error("llm rejected request: {}", e.getMessage());
-                return new RetryLater(e.getMessage());
+                return new RetryLater(e.getMessage(), !e.isAuthFailure());
             }
             log.info("llm {} attempt {} stop={} in={} out={}", result.model(), attempt, result.stopReason(),
                     result.inputTokens(), result.outputTokens());

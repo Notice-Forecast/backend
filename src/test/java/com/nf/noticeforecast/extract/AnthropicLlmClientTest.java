@@ -45,4 +45,12 @@ class AnthropicLlmClientTest {
         assertThat(CardSchema.schema()).containsEntry("additionalProperties", false);
         assertThat(CardSchema.schema().get("required").toString()).contains("forStudents");
     }
+
+    @Test
+    void detectsInputTooLongResponses() {
+        assertThat(AnthropicLlmClient.isInputTooLong(413, "")).isTrue();
+        assertThat(AnthropicLlmClient.isInputTooLong(400, "{\"error\":{\"message\":\"prompt is too long: 210000 tokens\"}}")).isTrue();
+        assertThat(AnthropicLlmClient.isInputTooLong(400, "{\"error\":{\"message\":\"invalid schema\"}}")).isFalse();
+        assertThat(AnthropicLlmClient.isInputTooLong(401, "prompt is too long")).isFalse();
+    }
 }

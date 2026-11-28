@@ -1,5 +1,6 @@
 package com.nf.noticeforecast.forecast;
 
+import com.nf.noticeforecast.notice.DepartmentNames;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -88,11 +89,11 @@ public final class SeriesTitles {
         return (double) common / (a.size() + b.size() - common);
     }
 
-    /** 부서 비교용. 공백과 괄호 안 표기를 뺀다. 예: "평생교육원운영팀(성심)" → "평생교육원운영팀" */
+    /** 부서 비교용. 공백·가운뎃점과 괄호 안 표기를 뺀다. 예: "평생교육원운영팀(성심)" → "평생교육원운영팀" */
     public static String departmentKey(String department) {
         if (department == null) {
             return "";
         }
-        return ROUND.matcher(department).replaceAll("").replaceAll("\\s+", "");
+        return DepartmentNames.normalize(ROUND.matcher(department).replaceAll(""));
     }
 }

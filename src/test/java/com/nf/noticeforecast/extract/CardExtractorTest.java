@@ -113,7 +113,27 @@ class CardExtractorTest {
     void rejectedRequestDoesNotMarkNotice() {
         FakeLlm llm = new FakeLlm().fail(new LlmRejectedException("400 bad schema", null));
 
-        assertThat(run(llm)).isInstanceOf(CardExtractor.RetryLater.class);
+        assertThat(run(llm)).isInstanceOfSatisfying(CardExtractor.RetryLater.class,
+                r -> assertThat(r.noticeRejected()).isTrue());
+    }
+
+    @Test
+    void authFailureStopsBatchInsteadOfSkippingNotice() {
+        FakeLlm llm = new FakeLlm().fail(new LlmRejectedException("401 invalid x-api-key", null, 401, false));
+
+        assertThat(run(llm)).isInstanceOfSatisfying(CardExtractor.RetryLater.class,
+                r -> assertThat(r.noticeRejected()).isFalse());
+    }
+
+    @Test
+    void inputTooLongMarksNeedsOriginalWithoutRetry() {
+        FakeLlm llm = new FakeLlm().fail(new LlmRejectedException("400 prompt is too long", null, true));
+
+        assertThat(run(llm)).isInstanceOfSatisfying(CardExtractor.Rejected.class, r -> {
+            assertThat(r.reason()).isEqualTo(com.nf.noticeforecast.notice.ExtractionReason.ATTACHMENT_UNREADABLE);
+            assertThat(r.attempts()).isEqualTo(1);
+        });
+        assertThat(llm.requests).hasSize(1);
     }
 
     @Test
