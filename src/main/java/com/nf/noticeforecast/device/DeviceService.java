@@ -7,7 +7,10 @@ import com.nf.noticeforecast.device.dto.DeviceSettingsRequest;
 import com.nf.noticeforecast.device.dto.PushSubscriptionRequest;
 import com.nf.noticeforecast.global.error.BusinessException;
 import com.nf.noticeforecast.global.error.ErrorCode;
+import com.nf.noticeforecast.global.error.InvalidFieldException;
 import com.nf.noticeforecast.notice.NoticeStatusRepository;
+import com.nf.noticeforecast.push.PushEndpointPolicy;
+import com.nf.noticeforecast.push.PushLogRepository;
 import com.nf.noticeforecast.notice.ReportRepository;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -24,6 +27,7 @@ public class DeviceService {
     private final PushSubscriptionRepository pushSubscriptionRepository;
     private final NoticeStatusRepository noticeStatusRepository;
     private final ReportRepository reportRepository;
+    private final PushLogRepository pushLogRepository;
     private final RestoreCodeGenerator restoreCodeGenerator;
 
     @Transactional
@@ -58,6 +62,9 @@ public class DeviceService {
 
     @Transactional
     public void subscribePush(String deviceId, PushSubscriptionRequest request) {
+        if (!PushEndpointPolicy.allowed(request.endpoint())) {
+            throw new InvalidFieldException("endpoint", "지원하지 않는 푸시 서비스 주소입니다.");
+        }
         pushSubscriptionRepository.upsert(deviceId, request.endpoint(), request.keys().p256dh(),
                 request.keys().auth(), Instant.now());
     }
@@ -72,6 +79,7 @@ public class DeviceService {
         pushSubscriptionRepository.deleteByDeviceId(deviceId);
         noticeStatusRepository.deleteAllByDeviceId(deviceId);
         reportRepository.detachDevice(deviceId);
+        pushLogRepository.deleteAllByDeviceId(deviceId);
         deviceRepository.deleteById(deviceId);
     }
 
